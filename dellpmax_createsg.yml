@@ -10,8 +10,8 @@
         verifycert: False
         user: 'smc'
         password: 'smc'
-        sgname: 'Ansible_test12'
-        array_id: '0001976XXXXXX Full 12 Digit Serial of array'
+        sgname: 'Ansible_SG'
+        array_id: '0001976XXXX Full 12 Digit Serial of array'
         srp_id: 'SRP_1'
         slo: 'Diamond'
         workload: None

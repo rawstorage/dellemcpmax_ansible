@@ -14,20 +14,30 @@ ANSIBLE_METADATA = {'metadata_version': '1.0',
 DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
+
+contributors: Paul Martin, Robin Mortell
+
 software versions=ansible 2.6.2
-                  python version = 2.7.15rc1 (default, Apr 15 2018, 
-                  21:51:34) [GCC 7.3.0]
+                  python version = 2.7.15rc1 (default, Apr 15 2018,
+                  
 short_description: module to create storage group on Dell EMC PowerMAXVMAX All 
-Flash or VMAX3 
-description:
-  - Module to get information about a storage group
-Author: "Paul Martin"
+Flash or VMAX3 storage arrays.
+ 
+
+  
+
 notes:
     - This module has been tested against UNI 9.0
-requirements:
+
+
+
+Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
     VMAX All Flash, VMAX3, or PowerMAX storage Array
-options:
+
+
+
+playbook options:
     unispherehost:
         description:
             - Full Qualified Domain Name or IP address of Unisphere for 
@@ -93,7 +103,8 @@ options:
         required:Optional default is set to GB
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
-        be su
+        be submitted to job queue and executed.  Task Id will be returned in 
+        JSON for lookup purposed to check job completion status. 
     volumeIdentifier:
         description:
         String up to 64 Characters no special character other than _ 
@@ -105,9 +116,27 @@ options:
 '''
 
 EXAMPLES = r'''
-- name: Get information about an SG
-  createsg:
-    sgname: 'TEST_SG'
+- name: Create Storage Group
+  hosts: localhost
+  connection: local
+  tasks:
+  - name: Create New Storage Group
+    dellpmax_createsg:
+        unispherehost: 'IPaddress or Hostname '
+        port: 8443
+        universion: 90
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        sgname: 'Ansible_SG'
+        array_id: '0001976XXXX Full 12 Digit Serial of array'
+        srp_id: 'SRP_1'
+        slo: 'Diamond'
+        workload: None
+        num_vols: 1
+        vol_size:  1
+        cap_unit: 'GB'
+        volumeIdentifier: 'AnsiblePlaybook'
 '''
 RETURN = r'''
 '''
@@ -196,11 +225,14 @@ def main():
          module.params['universion'], module.params['array_id'])
 
     verify=module.params['verifycert']
-    print (module.params['verifycert'])
+    username=module.params['user']
+    password=module.params['password']
+
+
     open_url(url=resource_url,data=json.dumps(payload),timeout=400,
              headers=headers,method="POST",
-             validate_certs=verify,url_username='smc',
-             url_password='smc',force_basic_auth=True)
+             validate_certs=verify,url_username=username,
+             url_password=password,force_basic_auth=True)
 
     module.exit_json(changed=True)
 
