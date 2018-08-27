@@ -25,7 +25,8 @@ Author: "Paul Martin"
 notes:
     - This module has been tested against UNI 9.0
 requirements:
-    - PyU4V Package installed on Ansible Server via pip install PyU4V
+    - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
+    VMAX All Flash, VMAX3, or PowerMAX storage Array
 options:
     unispherehost:
         description:
@@ -146,7 +147,7 @@ def main():
             unispherehost=dict(required=True),
             port=dict(type='str', required=True),
             universion=dict(type='int', required=False),
-            verifycert=dict(type='str', required=True),
+            verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
@@ -194,11 +195,11 @@ def main():
         (module.params['unispherehost'], module.params['port'],
          module.params['universion'], module.params['array_id'])
 
-    print(resource_url)
-
+    verify=module.params['verifycert']
+    print (module.params['verifycert'])
     open_url(url=resource_url,data=json.dumps(payload),timeout=400,
-             headers=headers,
-                method="POST",validate_certs=False,url_username='smc',
+             headers=headers,method="POST",
+             validate_certs=verify,url_username='smc',
              url_password='smc',force_basic_auth=True)
 
     module.exit_json(changed=True)
