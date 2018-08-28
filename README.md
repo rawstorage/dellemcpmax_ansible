@@ -7,7 +7,6 @@ requirements:
     
     Installation Instructions
     
-Library Directory must be subdirectory from current working directory on ansible server.  Playbooks can then be run from CWD with 
-ansible-playbook commands.
+Library Directory must be subdirectory from current working directory on ansible server.  Playbooks can then be run from current working directory with ansible-playbook commands.
 
 
