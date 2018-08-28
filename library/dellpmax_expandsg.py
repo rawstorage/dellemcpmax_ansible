@@ -10,44 +10,34 @@ __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
                     'status': ['preview'],
-                    'supported_by': 'VMAX REST API Community '
-                                    'https://community.emc.com/docs/DOC-56447'
-                    }
+                    'supported_by': 'community'}
 DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
-
-contributors: Paul Martin, Robin Mortell
-
 software versions=ansible 2.6.2
-                  python version = 2.7.15rc1 (default, Apr 15 2018,
-                  
+                  python version = 2.7.15rc1 (default, Apr 15 2018, 
+                  21:51:34) [GCC 7.3.0]
 short_description: module to create storage group on Dell EMC PowerMAXVMAX All 
-Flash or VMAX3 storage arrays.
-
-
+Flash or VMAX3 
+description:
+  - Module to get information about a storage group
+Author: "Paul Martin"
 notes:
-    - This module has been tested against UNI 9.0.  Every effort has been 
-    made to verify the scripts run with valid input.  These modules 
-    are a tech preview.  Additional error handling will be added at a later 
-    date, base functionality only right now.
-
-Requirements:
+    - This module has been tested against UNI 9.0
+requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
     VMAX All Flash, VMAX3, or PowerMAX storage Array
-
-playbook options:
-    Note:- Some Options are repeated across modules, we will look at 
-    reducing these in future work, however you can use variables in your 
-    playbook at the outset and reference in the task to reduce error, 
-    this also allows flexibility in versioning within a single playbook.   
-    
+options:
     unispherehost:
         description:
             - Full Qualified Domain Name or IP address of Unisphere for 
             PowerMax host.
         required:True
-
+    port:
+        description:
+            - Port for REST to communicate with Unisphere server, default is 
+            8443 however if unisphere was installed with a different port 
+            you will need to change.
     universion:
         -description:
             - Integer, version of unipshere software 
@@ -68,33 +58,6 @@ playbook options:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    srp_id:
-        description:
-            - Storage Resource Pool Name, Default is set to SRP_1, if your 
-            system has mainframe or multiple pools you can set this to a 
-            different value to match your environemtn
-        required:Optional
-    slo:
-        description:
-            - Service Level for the storage group, Supported on VMAX3 and All 
-            Flash and PoweMAX NVMe Arrays running PowerMAX OS 5978 and 
-            above.  Default is set to Diamond, but user can override this.
-        required: Optional
-    workload:
-        description:
-            - Block workload type, optional and can only be set on VMAX3 
-            Hybrid Storage Arrays.  Default None.
-        required:Optional
-    num_vols:
-        description:
-           - integer value for the number of volumes. Minimum is 1, module 
-           will fail if less than one volume is specified or value is 0.
-           
-        notes:
-            -if volumes are required of different sizes, addional tasks 
-            should be added to playbooks to use dellpmax_addvolume module
-           
-        required:True
     vol_size:
         description:
             - Integer value for the size of volumes.  All volumes will be 
@@ -108,8 +71,7 @@ playbook options:
         required:Optional default is set to GB
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
-        be submitted to job queue and executed.  Task Id will be returned in 
-        JSON for lookup purposed to check job completion status. 
+        be submitted to Job Queue and REST will return ID for lookup later
     volumeIdentifier:
         description:
         String up to 64 Characters no special character other than _ 
@@ -121,40 +83,56 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Stroage Group
+- name: Create Storage Group
   hosts: localhost
   connection: local
-  no_log: True
-  vars:
-        unispherehost: '192.168.156.63'
-        universion: "90"
-        verifycert: False
-        user: 'smc'
-        password: 'smc'
-
   tasks:
   - name: Create New Storage Group
     dellpmax_createsg:
-        unispherehost: "{{unispherehost}}"
-        port: "{{uniport}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        sgname: 'Ansible_test1234'
-        array_id: '000197623456'
+        unispherehost: 'IPaddress or Hostname '
+        port: 8443
+        universion: 90
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        sgname: 'Ansible_SG'
+        array_id: '0001976XXXX Full 12 Digit Serial of array'
         srp_id: 'SRP_1'
         slo: 'Diamond'
         workload: None
-        num_vols: 20
-        vol_size:  10
+        num_vols: 1
+        vol_size:  1
         cap_unit: 'GB'
         volumeIdentifier: 'AnsiblePlaybook'
 '''
 RETURN = r'''
 '''
 
+''''
+Sample payload
 
+payload=({
+  "srpId": "SRP_1",
+  "storageGroupId": "TEMP",
+  "emulation": "FBA",
+  "sloBasedStorageGroupParam": [
+    {
+      "num_of_vols": 1,
+      "sloId": "Diamond",
+      "volumeIdentifier": {
+        "identifier_name": "Ansible",
+        "volumeIdentifierChoice": "identifier_name"
+      },
+      "volumeAttribute": {
+        "volume_size": "1",
+        "capacityUnit": "GB"
+      }
+    }
+  ]
+})
+
+
+'''
 
 def main():
     changed = False
@@ -163,6 +141,7 @@ def main():
         argument_spec=dict(
             sgname=dict(type='str',required=True),
             unispherehost=dict(required=True),
+            port=dict(type='str', required=True),
             universion=dict(type='int', required=False),
             verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
@@ -207,21 +186,17 @@ def main():
 
     })
 
-    resource_url="https://{}:8443/univmax/restapi/{" \
-                 "}/sloprovisioning/symmetrix" \
+    resource_url="https://{}:{}/univmax/restapi/{}/sloprovisioning/symmetrix" \
                  "/{}/storagegroup".format\
-        (module.params['unispherehost'],module.params['universion'],
-         module.params['array_id'])
+        (module.params['unispherehost'], module.params['port'],
+         module.params['universion'], module.params['array_id'])
 
     verify=module.params['verifycert']
-    username=module.params['user']
-    password=module.params['password']
-
-
-    open_url(url=resource_url,data=json.dumps(payload),timeout=600,
+    print (module.params['verifycert'])
+    open_url(url=resource_url,data=json.dumps(payload),timeout=400,
              headers=headers,method="POST",
-             validate_certs=verify,url_username=username,
-             url_password=password,force_basic_auth=True)
+             validate_certs=verify,url_username='smc',
+             url_password='smc',force_basic_auth=True)
 
     module.exit_json(changed=True)
 
