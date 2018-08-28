@@ -18,7 +18,9 @@ short_description: module to create storage group on Dell EMC PowerMAXVMAX All
 Flash or VMAX3 
 description:
   - Module to get information about a storage group
-Author: "Paul Martin"
+
+contributors: Paul Martin, Rob Mortell
+
 notes:
     - This module has been tested against UNI 9.0
 requirements:
