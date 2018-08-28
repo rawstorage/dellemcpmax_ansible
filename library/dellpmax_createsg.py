@@ -118,7 +118,7 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Stroage Group
+- name: Create Storage Group
   hosts: localhost
   connection: local
   no_log: True
@@ -128,6 +128,7 @@ EXAMPLES = r'''
         verifycert: False
         user: 'smc'
         password: 'smc'
+        array_id: '000197600123'
 
   tasks:
   - name: Create New Storage Group
@@ -139,7 +140,7 @@ EXAMPLES = r'''
         user: "{{user}}"
         password: "{{password}}"
         sgname: 'Ansible_test1234'
-        array_id: '000197623456'
+        array_id: "{{array_id}}"
         srp_id: 'SRP_1'
         slo: 'Diamond'
         workload: None
@@ -151,11 +152,8 @@ EXAMPLES = r'''
 RETURN = r'''
 '''
 
-
-
 def main():
-    changed = False
-    #print (changed)
+
     module = AnsibleModule(
         argument_spec=dict(
             sgname=dict(type='str',required=True),
@@ -203,6 +201,7 @@ def main():
         'Content-Type': 'application/json'
 
     })
+    #Building my resource URL from variables and params passed in by playbook
 
     resource_url="https://{}:8443/univmax/restapi/{}/sloprovisioning/symmetrix" \
                  "/{}/storagegroup".format\
@@ -212,6 +211,7 @@ def main():
     verify=module.params['verifycert']
     username=module.params['user']
     password=module.params['password']
+
 
 
     open_url(url=resource_url,data=json.dumps(payload),timeout=600,
