@@ -100,7 +100,7 @@ EXAMPLES = r'''
   hosts: localhost
   connection: local
     vars:
-        unispherehost: '10.60.156.63'
+        unispherehost: '192.168.165.63'
         universion: "90"
         verifycert: False
         user: 'smc'
