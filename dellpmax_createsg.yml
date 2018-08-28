@@ -1,21 +1,21 @@
-- name: Create Storage Group
+- name: Create Stroage Group
   hosts: localhost
   connection: local
   tasks:
   - name: Create New Storage Group
     dellpmax_createsg:
-        unispherehost: 'IPaddress or Hostname '
+        unispherehost: 'IPAddress or Hostname'
         port: 8443
         universion: 90
         verifycert: False
         user: 'smc'
         password: 'smc'
-        sgname: 'Ansible_SG'
-        array_id: '0001976XXXX Full 12 Digit Serial of array'
-        srp_id: 'SRP_1'
+        sgname: 'Ansible_test12'
+        array_id: '000197600123'
+        srp_id:	'SRP_1'
         slo: 'Diamond'
         workload: None
         num_vols: 1
-        vol_size:  1
+        vol_size:  1 
         cap_unit: 'GB'
         volumeIdentifier: 'AnsiblePlaybook'

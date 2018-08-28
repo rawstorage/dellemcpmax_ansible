@@ -1,8 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 
-# (c) 2017, Simon Dodsley (simon@purestorage.com)
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 
@@ -22,8 +19,8 @@ contributors: Paul Martin, Robin Mortell
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
                   
-short_description: module to create storage group on Dell EMC PowerMAXVMAX All 
-Flash or VMAX3 storage arrays.
+short_description: module to create storage group on Dell EMC PowerMax VMAX 
+All Flash or VMAX3 storage arrays.
 
 
 notes:
@@ -34,7 +31,7 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
+    VMAX All Flash, VMAX3, or PowerMax storage Array
 
 playbook options:
     Note:- Some Options are repeated across modules, we will look at 
@@ -207,8 +204,7 @@ def main():
 
     })
 
-    resource_url="https://{}:8443/univmax/restapi/{" \
-                 "}/sloprovisioning/symmetrix" \
+    resource_url="https://{}:8443/univmax/restapi/{}/sloprovisioning/symmetrix" \
                  "/{}/storagegroup".format\
         (module.params['unispherehost'],module.params['universion'],
          module.params['array_id'])
