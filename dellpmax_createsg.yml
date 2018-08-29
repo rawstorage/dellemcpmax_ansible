@@ -10,7 +10,7 @@
         verifycert: False
         user: 'smc'
         password: 'smc'
-        sgname: 'Ansible_test12'
+        sgname: 'Ansible'
         array_id: '000197600123'
         srp_id:	'SRP_1'
         slo: 'Diamond'
