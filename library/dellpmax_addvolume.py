@@ -109,7 +109,6 @@ EXAMPLES = r'''
   - name: Add Volume to Storage Group
     dellpmax_addvolume:
         unispherehost: "{{unispherehost}}"
-        port: "{{uniport}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
