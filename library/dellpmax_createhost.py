@@ -65,7 +65,7 @@ playbook options:
             -  String value to denote hostname, No  Special Character 
             support except for _.  Case sensistive for REST Calls.
         required:True
-    initiator_id:
+    initiator_list:
         description:
             - List of Initiator WWN or IQN 
         required:True
@@ -83,7 +83,7 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Storage Group
+- name: Create Host
   hosts: localhost
   connection: local
     vars:
@@ -94,13 +94,17 @@ EXAMPLES = r'''
         password: 'smc'
   tasks:
   - name: Add Volume to Storage Group
-    dellpmax_addvolume:
+    dellpmax_createhost:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        
+        initiator_list:
+            -10000090fa812345
+            -10000090fa812346
+        consistent_lun: 'True'
+        hostId: "MyHostName"
 '''
 RETURN = r'''
 '''
@@ -119,7 +123,7 @@ def main():
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
             host_id=dict(type='str', required=True),
-            initiator_id=dict(type='list', required=True),
+            initiator_list=dict(type='list', required=True),
             consistent_lun=dict(type='bool', required=True)
         )
     )
@@ -165,7 +169,7 @@ def main():
                 },
                 "hostId": module.params['hostId'],
                 "initiatorId": [
-                     module.params['initiatorId']
+                     module.params['initiator_list']
                 ]
             }
     )
