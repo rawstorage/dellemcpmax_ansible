@@ -86,25 +86,28 @@ EXAMPLES = r'''
 - name: Create Host
   hosts: localhost
   connection: local
-    vars:
-        unispherehost: '192.168.165.63'
+  vars:
+        unispherehost: '192.168.20.63'
+        uniport: 8443
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
+        array_id: "000197600123"
   tasks:
   - name: Add Volume to Storage Group
     dellpmax_createhost:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        initiator_list:
-            -10000090fa812345
-            -10000090fa812346
-        consistent_lun: 'True'
-        hostId: "MyHostName"
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             initiator_list:
+              - 10000000c98ffef2
+              - 10000000c98ffef3
+             host_id: "MyHostName"
+
 '''
 RETURN = r'''
 '''
@@ -115,7 +118,6 @@ def main():
     # print (changed)
     module = AnsibleModule(
         argument_spec=dict(
-            sgname=dict(type='str', required=True),
             unispherehost=dict(required=True),
             universion=dict(type='int', required=False),
             verifycert=dict(type='bool', required=True),
@@ -124,54 +126,17 @@ def main():
             array_id=dict(type='str', required=True),
             host_id=dict(type='str', required=True),
             initiator_list=dict(type='list', required=True),
-            consistent_lun=dict(type='bool', required=True)
+
         )
     )
     # Make REST call to Unisphere Server and execute create Host
 
     payload = (
         {
-            {
-                "hostFlags": {
-                    "disable_q_reset_on_ua": {
-                        "override": False,
-                        "enabled": False
-                    },
-                    "environ_set": {
-                        "override": False,
-                        "enabled": False
-                    },
-                    "volume_set_addressing": {
-                        "override": False,
-                        "enabled": False
-                    },
-                    "spc2_protocol_version": {
-                        "override": False,
-                        "enabled": True
-                    },
-                    "scsi_support1": {
-                        "override": False,
-                        "enabled": True
-                    },
-                    "openvms": {
-                        "override": False,
-                        "enabled": False
-                    },
-                    "avoid_reset_broadcast": {
-                        "override": False,
-                        "enabled": False
-                    },
-                    "scsi_3": {
-                        "override": False,
-                        "enabled": True
-                    },
-                    "consistent_lun": module.params['consistent_lun']
-                },
-                "hostId": module.params['hostId'],
-                "initiatorId": [
-                     module.params['initiator_list']
-                ]
-            }
+        "hostId": module.params['host_id'],
+        "initiatorId":
+        module.params['initiator_list']
+        }
     )
 
     headers = ({
@@ -180,12 +145,10 @@ def main():
 
     })
 
-    resource_url = "https://{}:8443/univmax/restapi/{" \
-                   "}/sloprovisioning/symmetrix" \
-                   "/{}/host/".format \
+    resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
+                   "symmetrix/{}/host/".format \
         (module.params['unispherehost'], module.params['universion'],
          module.params['array_id'])
-
     verify = module.params['verifycert']
     username = module.params['user']
     password = module.params['password']
