@@ -1,0 +1,28 @@
+- name: Create Host
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.20.63'
+        uniport: 8443
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        array_id: "000197600123"
+  tasks:
+ - name: Create a New Port Group
+    dellpmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             port_list:
+                     -
+                      directorId: "FA-1D"
+                      portId: "4"
+                     -
+                      directorId: "FA-2D"
+                      portId: "4"
+             pg_id: "ansible_pg"

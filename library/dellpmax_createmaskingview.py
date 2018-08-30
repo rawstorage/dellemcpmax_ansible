@@ -20,9 +20,12 @@ software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
-    module to create a port portgroup, Port Groups are sets of Front End 
-    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   
+    -Module to create a Masking view to provision storage to a host.  
     
+requirements:
+    -Storage Group, Host or Host Group and Port Group must already exist for 
+    this to run sucessfully.
+
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
     made to verify the scripts run with valid input.  These modules 
@@ -60,31 +63,31 @@ playbook options:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    pg_id:
+    host_name:
          description:
-            -  String value to denote name of portgroup, No  Special Character 
-            support except for _.  Case sensistive for REST Calls.
+            -  String value to denote Hostname or Cluster, No Special 
+            character except for _.  Case sensistive for REST Calls. Host 
+            must exist
         required:True
-    Port List:
+    portgroup:
         description:
-            - List of Directors and Ports to be added to the Port Group in 
-            the format 
-              {
-      "directorId": "FA-1D",
-      "portId": "4"
-                },
-                  {
-      "directorId": "FA-2D",
-      "portId": "4"
-                }
+            - Name of Port Group to provision storage volume to host.  
+            Must already be created.  It is assumed host HBA is already 
+            zoned for access to front end ports.           
+        required:True
+    
+    storagegroup:
+        description:
+            - Name of storage Group to provision storage volume to host.  
+            Must already be created  
+        required:True
+    maskingview:
+        description:
+            - Name ot be assigned to new Masking view, it is assumed this 
+            name must be unique and is case sensitive.  cahracter lmiits are 
+            same as storage group
+        required: True 
             
-        required:True
-    consistent_lun:
-        description:
-            - Boolean Value, specifying consistent_lun ensures LUN address 
-            consistency across ports, this is not required on most modern 
-            operating systems as WWN or UUID is used to Uniqely identify luns
-        required:True    
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
         be submitted to job queue and executed.  Task Id will be returned in 
@@ -93,34 +96,30 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Port Group
+- name: Create Host
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '10.60.156.63'
+        unispherehost: '192.168.20.63'
         uniport: 8443
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
-        array_id: "000197600156"
+        array_id: "000197600123"
   tasks:
-  - name: Create a New Port Group
-    dellpmax_portgroup:
+  - name: Add Volume to Storage Group
+    dellpmax_createhost:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
              user: "{{user}}"
              password: "{{password}}"
-             array_id: "{{array_id}}"
-             port_list:
-                     -
-                      directorId: "FA-1D"
-                      portId: "4"
-                     -
-                      directorId: "FA-2D"
-                      portId: "4"
-             pg_id: "ansible_pg"
+             array_id: "{{array_id}}
+             host_id: "MyHostName"
+             storagegroup: "MySG"
+             portgroup: "MyPG"
+             maskingview: "MyMaskingView"
 
 '''
 RETURN = r'''
@@ -138,8 +137,11 @@ def main():
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
+            sg_id = dict(type='str', required=True),
+            host_or_cluster=sg_id==dict(type='str', required=True),
             pg_id=dict(type='str', required=True),
-            port_list=dict(type='list', required=True),
+            maskingview_id=dict(type='str', required=True),
+            compliancealterts=dict(type='bool',required=False)
 
         )
     )
@@ -147,8 +149,23 @@ def main():
 
     payload = (
         {
-            "portGroupId": module.params['pg_id'],
-            "symmetrixPortKey": module.params['port_list']
+            "portGroupSelection": {
+                "useExistingPortGroupParam": {
+                    "portGroupId": module.params['pg_id']
+                }
+            },
+            "maskingViewId": "test",
+            "hostOrHostGroupSelection": {
+                "useExistingHostGroupParam": {
+                    "hostGroupId": module.params['host_or_cluster']
+                }
+            },
+            "storageGroupSelection": {
+                "useExistingStorageGroupParam": {
+                    "storageGroupId": module.params['sg_id']
+                }
+            },
+            "enableComplianceAlerts": True
         }
     )
 
@@ -159,12 +176,13 @@ def main():
     })
 
     resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
-                   "symmetrix/{}/portgroup/".format \
+                   "symmetrix/{}/maskingview/".format \
         (module.params['unispherehost'], module.params['universion'],
          module.params['array_id'])
     verify = module.params['verifycert']
     username = module.params['user']
     password = module.params['password']
+    print(resource_url)
     open_url(url=resource_url, data=json.dumps(payload), timeout=600,
              headers=headers, method="POST",
              validate_certs=verify, url_username=username,
