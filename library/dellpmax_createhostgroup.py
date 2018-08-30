@@ -96,7 +96,6 @@ EXAMPLES = r'''
         password: 'smc'
         array_id: "000197600123"
   tasks:
-  - name: Add Volume to Storage Group
     dellpmax_createhostgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
@@ -105,9 +104,9 @@ EXAMPLES = r'''
              password: "{{password}}"
              array_id: "{{array_id}}"
              host_list:
-              - host1
-              - host2
-             cluster_name: "Cluster"
+              - "AnsibleHost1"
+              - "AnsibleHost2"
+             cluster_name: "AnsibleCluster"
 
 '''
 RETURN = r'''
@@ -134,9 +133,9 @@ def main():
 
     payload = (
         {
-        "hostGroupId": module.params['host_id'],
+        "hostGroupId": module.params['cluster_name'],
         "hostId":
-        module.params['initiator_list']
+        module.params['host_list']
         }
     )
 

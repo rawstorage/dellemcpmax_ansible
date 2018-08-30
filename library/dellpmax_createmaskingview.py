@@ -108,19 +108,18 @@ EXAMPLES = r'''
         password: 'smc'
         array_id: "000197600123"
   tasks:
-  - name: Add Volume to Storage Group
-    dellpmax_createhost:
+    - name: Create Masking View for Host Access
+    dellpmax_createmaskingview:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
              user: "{{user}}"
              password: "{{password}}"
-             array_id: "{{array_id}}
-             host_id: "MyHostName"
-             storagegroup: "MySG"
-             portgroup: "MyPG"
-             maskingview: "MyMaskingView"
-
+             array_id: "{{array_id}}"
+             host_or_cluster: "AnsibleCluster"
+             sgname: "{{sgname}}"
+             pg_id: "Ansible_PG"
+             maskingview_id: "MyMaskingView"
 '''
 RETURN = r'''
 '''
@@ -137,8 +136,8 @@ def main():
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            sg_id = dict(type='str', required=True),
-            host_or_cluster=sg_id==dict(type='str', required=True),
+            sgname = dict(type='str', required=True),
+            host_or_cluster=dict(type='str', required=True),
             pg_id=dict(type='str', required=True),
             maskingview_id=dict(type='str', required=True),
             compliancealterts=dict(type='bool',required=False)
@@ -154,7 +153,7 @@ def main():
                     "portGroupId": module.params['pg_id']
                 }
             },
-            "maskingViewId": "test",
+            "maskingViewId": module.params['maskingview_id'],
             "hostOrHostGroupSelection": {
                 "useExistingHostGroupParam": {
                     "hostGroupId": module.params['host_or_cluster']
@@ -162,7 +161,7 @@ def main():
             },
             "storageGroupSelection": {
                 "useExistingStorageGroupParam": {
-                    "storageGroupId": module.params['sg_id']
+                    "storageGroupId": module.params['sgname']
                 }
             },
             "enableComplianceAlerts": True

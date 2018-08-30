@@ -131,23 +131,22 @@ EXAMPLES = r'''
         array_id: '000197600123'
 
   tasks:
-  - name: Create New Storage Group
+   - name: Create New Storage Group and add data volumes
     dellpmax_createsg:
         unispherehost: "{{unispherehost}}"
-        port: "{{uniport}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: 'Ansible_test1234'
+        sgname: "{{sgname}}"
         array_id: "{{array_id}}"
-        srp_id: 'SRP_1'
+        srp_id:	'SRP_1'
         slo: 'Diamond'
         workload: None
-        num_vols: 20
-        vol_size:  10
+        num_vols: 1
+        vol_size:  1
         cap_unit: 'GB'
-        volumeIdentifier: 'AnsiblePlaybook'
+        volumeIdentifier: 'Data'
 '''
 RETURN = r'''
 '''
@@ -207,21 +206,32 @@ def main():
                  "/{}/storagegroup".format\
         (module.params['unispherehost'],module.params['universion'],
          module.params['array_id'])
-
     verify=module.params['verifycert']
     username=module.params['user']
     password=module.params['password']
 
-
-
-    open_url(url=resource_url,data=json.dumps(payload),timeout=600,
-             headers=headers,method="POST",
-             validate_certs=verify,url_username=username,
-             url_password=password,force_basic_auth=True)
+    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
+             headers=headers, method="POST",
+             validate_certs=verify, url_username=username,
+             url_password=password, force_basic_auth=True)
 
     module.exit_json(changed=True)
 
 
+"""
+    try:
+        open_url(url=resource_url,data=json.dumps(payload),timeout=600,
+             headers=headers,method="POST",
+             validate_certs=verify,url_username=username,
+             url_password=password,force_basic_auth=True)
+
+        changed = True
+    except:
+        changed = False
+
+    module.exit_json(changed=changed)
+
+"""
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *

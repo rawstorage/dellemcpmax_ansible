@@ -95,18 +95,18 @@ EXAMPLES = r'''
         password: 'smc'
         array_id: "000197600123"
   tasks:
-  - name: Add Volume to Storage Group
+  - name: Create Host2
     dellpmax_createhost:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             initiator_list:
-              - 10000000c98ffef2
-              - 10000000c98ffef3
-             host_id: "MyHostName"
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        initiator_list:
+        - 10000000c98ffea2
+        - 10000000c98ffeb3
+        host_id: "AnsibleHost2"
 
 '''
 RETURN = r'''
