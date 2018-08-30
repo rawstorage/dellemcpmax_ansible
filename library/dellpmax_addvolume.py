@@ -106,20 +106,19 @@ EXAMPLES = r'''
         user: 'smc'
         password: 'smc'
   tasks:
-  - name: Add Volume to Storage Group
+  - name: Add REDO Volumes to Storage Group
     dellpmax_addvolume:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: 'Ansible_SG'
-        array_id: '000197600123'
-        srp_id: 'SRP_1'
+        sgname: "{{sgname}}"
+        array_id: "{{array_id}}"
         num_vols: 1
-        vol_size:  3
+        vol_size:  2
         cap_unit: 'GB'
-        volumeIdentifier: 'AnsibleAddedVolume'
+        volumeIdentifier: 'REDO'
 '''
 RETURN = r'''
 '''

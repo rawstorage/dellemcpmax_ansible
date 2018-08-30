@@ -105,8 +105,7 @@ EXAMPLES = r'''
         password: 'smc'
         array_id: "000197600156"
   tasks:
-  - name: Create a New Port Group
-    dellpmax_portgroup:
+      dellpmax_portgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
@@ -120,8 +119,7 @@ EXAMPLES = r'''
                      -
                       directorId: "FA-2D"
                       portId: "4"
-             pg_id: "ansible_pg"
-
+             pg_id: "Ansible_PG"
 '''
 RETURN = r'''
 '''
