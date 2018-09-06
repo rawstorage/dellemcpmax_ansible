@@ -181,10 +181,14 @@ def main():
 
     dellemc = conn.provisioning
 
-    # Make REST call to Unisphere Server and execute create storage group/
+    # Make REST call to Unisphere Server and execute create storage group
+
     changed = False
+    # Compile a list of existing stroage groups.
 
     sglist = dellemc.get_storage_group_list()
+
+    # Check if Storage Group already exists
 
     if module.params['sgname'] not in sglist:
         dellemc.create_non_empty_storagegroup(srp_id='SRP_1',
