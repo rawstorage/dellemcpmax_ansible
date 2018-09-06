@@ -9,4 +9,8 @@ requirements:
     
 Library Directory must be subdirectory from current working directory on ansible server.  Playbooks can then be run from current working directory with ansible-playbook commands.
 
+Requires PyU4V installable from PIP
+apt-get install python-pip
+pip install PyU4V
+
 
