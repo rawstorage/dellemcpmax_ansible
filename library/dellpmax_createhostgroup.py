@@ -20,8 +20,9 @@ software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
-    module to add new volumes to existing storage group. This module can be 
-    repeated multiple times in a playbook.
+    Module to Create Host Group for Masking Storage to a Cluster, 
+    host groups are collections of hosts.  This module requires that hosts 
+    have already 
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
@@ -43,7 +44,7 @@ playbook options:
             - Full Qualified Domain Name or IP address of Unisphere for 
             PowerMax host.
         required:True
-    
+
     universion:
         -description:
             - Integer, version of unipshere software 
@@ -56,111 +57,85 @@ playbook options:
         required:True             
 
         required: True
-    sgname:
-        description:
-            - Storage Group name
-        required:True     
     array_id:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    
-    num_vols:
-        description:
-           - integer value for the number of volumes. Minimum is 1, module 
-           will fail if less than one volume is specified or value is 0.
+    host_id:
+         description:
+            -  String value to denote hostname, No  Special Character 
+            support except for _.  Case sensistive for REST Calls.
         required:True
-    vol_size:
+    initiator_list:
         description:
-            - Integer value for the size of volumes.  All volumes will be 
-            created with same size.  Use dellpmax_addvol to add additional 
-            volumes if you require different sized volumes once storage 
-            group is created.
+            - List of Initiator WWN or IQN 
         required:True
-    cap_unit: 
+    consistent_lun:
         description:
-            - String value, Unit of capacity for GB,TB,MB or CYL
-        required:Optional default is set to GB
+            - Boolean Value, specifying consistent_lun ensures LUN address 
+            consistency across ports, this is not required on most modern 
+            operating systems as WWN or UUID is used to Uniqely identify luns
+        required:True    
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
         be submitted to job queue and executed.  Task Id will be returned in 
         JSON for lookup purposed to check job completion status. 
-    volumeIdentifier:
-        description:
-        String up to 64 Characters no special character other than _ 
-        Provides an optional name or ID to make volumes easily identified on 
-        system hosts can run Dell EMC inq utility to identify volumes e.g.
-        inq -identify device_name 
-        required:Optional 
 
 '''
 
 EXAMPLES = r'''
-- name: Create Storage Group
+- name: Create Cluster
   hosts: localhost
   connection: local
-    vars:
-        unispherehost: '192.168.165.63'
+  vars:
+        unispherehost: '192.168.20.63'
+        uniport: 8443
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
+        array_id: "000197600123"
   tasks:
-  - name: Add REDO Volumes to Storage Group
-    dellpmax_addvolume:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        array_id: "{{array_id}}"
-        num_vols: 1
-        vol_size:  2
-        cap_unit: 'GB'
-        volumeIdentifier: 'REDO'
+    dellpmax_createhostgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             host_list:
+              - "AnsibleHost1"
+              - "AnsibleHost2"
+             cluster_name: "AnsibleCluster"
+
 '''
 RETURN = r'''
 '''
+
 
 def main():
     changed = False
     # print (changed)
     module = AnsibleModule(
         argument_spec=dict(
-            sgname=dict(type='str', required=True),
             unispherehost=dict(required=True),
             universion=dict(type='int', required=False),
             verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            num_vols=dict(type='int', required=True),
-            vol_size=dict(type='int', required=True),
-            cap_unit=dict(type='str', required=True),
-            volumeIdentifier=dict(type='str', required=True)
+            cluster_name=dict(type='str', required=True),
+            host_list=dict(type='list', required=True),
+
         )
     )
-    # Make REST call to Unisphere Server and execute create storage group/
+    # Make REST call to Unisphere Server and execute create Host
 
     payload = (
         {
-            "editStorageGroupActionParam": {
-                "expandStorageGroupParam": {
-                    "addVolumeParam": {
-                        "num_of_vols": module.params['num_vols'],
-                        "emulation": "FBA",
-                        "volumeIdentifier": {
-                            "identifier_name": module.params['volumeIdentifier'],
-                            "volumeIdentifierChoice": "identifier_name"
-                        },
-                        "volumeAttribute": {
-                            "volume_size": module.params['vol_size'],
-                            "capacityUnit": module.params['cap_unit']
-                        }
-                    }
-                }
-            }
+        "hostGroupId": module.params['cluster_name'],
+        "hostId":
+        module.params['host_list']
         }
     )
 
@@ -170,18 +145,16 @@ def main():
 
     })
 
-    resource_url = "https://{}:8443/univmax/restapi/{" \
-                   "}/sloprovisioning/symmetrix" \
-                   "/{}/storagegroup/{}".format \
-        (module.params['unispherehost'],module.params['universion'],
-         module.params['array_id'],module.params['sgname'])
-
+    resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
+                   "symmetrix/{}/hostgroup/".format \
+        (module.params['unispherehost'], module.params['universion'],
+         module.params['array_id'])
     verify = module.params['verifycert']
     username = module.params['user']
     password = module.params['password']
     print(resource_url)
     open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="PUT",
+             headers=headers, method="POST",
              validate_certs=verify, url_username=username,
              url_password=password, force_basic_auth=True)
 
