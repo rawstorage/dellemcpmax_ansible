@@ -2,6 +2,7 @@
 
 
 from __future__ import absolute_import, division, print_function
+import PyU4V
 
 __metaclass__ = type
 
@@ -146,48 +147,39 @@ def main():
     )
     # Make REST call to Unisphere Server and execute create Host
 
-    payload = (
-        {
-            "portGroupSelection": {
-                "useExistingPortGroupParam": {
-                    "portGroupId": module.params['pg_id']
-                }
-            },
-            "maskingViewId": module.params['maskingview_id'],
-            "hostOrHostGroupSelection": {
-                "useExistingHostGroupParam": {
-                    "hostGroupId": module.params['host_or_cluster']
-                }
-            },
-            "storageGroupSelection": {
-                "useExistingStorageGroupParam": {
-                    "storageGroupId": module.params['sgname']
-                }
-            },
-            "enableComplianceAlerts": True
-        }
-    )
+    # Crete Connection to Unisphere Server to Make REST calls
 
-    headers = ({
+    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+                         array_id=module.params['array_id'],
+                         verify=module.params['verifycert'],
+                         username=module.params['user'],
+                         password=module.params['password'],
+                         u4v_version=module.params['universion'])
 
-        'Content-Type': 'application/json'
+    # Setting connection shortcut to Provisioning modules to simplify code
 
-    })
+    dellemc = conn.provisioning
 
-    resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
-                   "symmetrix/{}/maskingview/".format \
-        (module.params['unispherehost'], module.params['universion'],
-         module.params['array_id'])
-    verify = module.params['verifycert']
-    username = module.params['user']
-    password = module.params['password']
-    print(resource_url)
-    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="POST",
-             validate_certs=verify, url_username=username,
-             url_password=password, force_basic_auth=True)
+    # Make REST call to Unisphere Server and execute create storage group
 
-    module.exit_json(changed=True)
+    changed = False
+    # Compile a list of existing stroage groups.
+
+    mvlist = dellemc.get_masking_view_list()
+
+    # Check if Storage Group already exists
+
+    if module.params['maskingview_id'] not in mvlist:
+        dellemc.create_masking_view_existing_components(port_group_name=module.params['pg_id'],
+                                                        masking_view_name=module.params['maskingview_id'],
+                                                        storage_group_name=module.params['sgname'],
+                                                        host_name= module.params['host_or_cluster')
+        changed = True
+
+    else:
+        module.fail_json(msg='Masking View Already Exists')
+
+    module.exit_json(changed=changed)
 
 
 from ansible.module_utils.basic import *

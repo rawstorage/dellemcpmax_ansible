@@ -2,7 +2,7 @@
 
 
 from __future__ import absolute_import, division, print_function
-
+import PyU4V
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
@@ -156,19 +156,33 @@ def main():
 
     })
 
-    resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
-                   "symmetrix/{}/portgroup/".format \
-        (module.params['unispherehost'], module.params['universion'],
-         module.params['array_id'])
-    verify = module.params['verifycert']
-    username = module.params['user']
-    password = module.params['password']
-    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="POST",
-             validate_certs=verify, url_username=username,
-             url_password=password, force_basic_auth=True)
+    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+                         array_id=module.params['array_id'],
+                         verify=module.params['verifycert'],
+                         username=module.params['user'],
+                         password=module.params['password'],
+                         u4v_version=module.params['universion'])
 
-    module.exit_json(changed=True)
+    # Setting connection shortcut to Provisioning modules to simplify code
+
+    dellemc = conn.provisioning
+
+    changed = False
+    # Check for each host in the host list that it exists, otherwise fail
+    # module.
+
+    pglist = dellemc.get_portgroup_list()
+
+    if module.params['pg_id'] in pglist:
+        module.fail_json(msg='Portgroup %s already exists, failing task', \
+        % (portgroup))
+
+    else:
+        dellemc.create_multiport_portgroup(portgroup_id=module.params['pg_id'],
+                                           ports=module.params['port_list'])
+        changed = True
+
+    module.exit_json(changed=changed)
 
 
 from ansible.module_utils.basic import *
