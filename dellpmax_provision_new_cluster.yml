@@ -76,7 +76,7 @@
               - "AnsibleHost2"
              cluster_name: "AnsibleCluster"
   - name: Create a New Port Group
-    dellpmax_portgroup:
+    dellpmax_createportgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
