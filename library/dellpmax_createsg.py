@@ -1,9 +1,8 @@
 #!/usr/bin/python
-
-
-from __future__ import absolute_import, division, print_function
+from ansible.module_utils.six.moves.urllib.error import HTTPError
 
 __metaclass__ = type
+import PyU4V
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
                     'status': ['preview'],
@@ -24,7 +23,7 @@ All Flash or VMAX3 storage arrays.
 
 
 notes:
-    - This module has been tested against UNI 9.0.  Every effort has been 
+    - This module has been tested against UNI 9.0.    Every effort has been 
     made to verify the scripts run with valid input.  These modules 
     are a tech preview.  Additional error handling will be added at a later 
     date, base functionality only right now.
@@ -32,6 +31,8 @@ notes:
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
     VMAX All Flash, VMAX3, or PowerMax storage Array
+    Also requires PyU4V to be installed from PyPi using PIP
+    python -m pip install PyU4V
 
 playbook options:
     Note:- Some Options are repeated across modules, we will look at 
@@ -152,7 +153,6 @@ RETURN = r'''
 '''
 
 def main():
-
     module = AnsibleModule(
         argument_spec=dict(
             sgname=dict(type='str',required=True),
@@ -168,70 +168,48 @@ def main():
             num_vols=dict(type='int', required=True),
             vol_size=dict(type='int', required=True),
             cap_unit=dict(type='str', required=True),
-            volumeIdentifier=dict(type='str', required=True)
+            volumeIdentifier=dict(type='str', required=False)
         )
     )
-    # Make REST call to Unisphere Server and execute create storage group/
 
+    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+                         array_id=module.params['array_id'],
+                         verify=module.params['verifycert'],
+                         username=module.params['user'],
+                         password=module.params['password'],
+                         u4v_version=module.params['universion'])
 
-    payload=({
-              "srpId": module.params['srp_id'],
-              "storageGroupId": module.params['sgname'],
-              "emulation": "FBA",
-              "sloBasedStorageGroupParam": [
-                {
-                  "num_of_vols": module.params['num_vols'],
-                  "sloId": "Diamond",
-                  "volumeIdentifier": {
-                    "identifier_name": module.params['volumeIdentifier'],
-                    "volumeIdentifierChoice": "identifier_name"
-                  },
-                  "volumeAttribute": {
-                    "volume_size": module.params['vol_size'],
-                    "capacityUnit": module.params['cap_unit']
-                  }
-                }
-              ]
-            }
-            )
+    dellemc = conn.provisioning
 
-    headers=({
+    # Make REST call to Unisphere Server and execute create storage group
 
-        'Content-Type': 'application/json'
+    changed = False
+    # Compile a list of existing stroage groups.
 
-    })
-    #Building my resource URL from variables and params passed in by playbook
+    sglist = dellemc.get_storage_group_list()
 
-    resource_url="https://{}:8443/univmax/restapi/{}/sloprovisioning/symmetrix" \
-                 "/{}/storagegroup".format\
-        (module.params['unispherehost'],module.params['universion'],
-         module.params['array_id'])
-    verify=module.params['verifycert']
-    username=module.params['user']
-    password=module.params['password']
+    # Check if Storage Group already exists
 
-    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="POST",
-             validate_certs=verify, url_username=username,
-             url_password=password, force_basic_auth=True)
-
-    module.exit_json(changed=True)
-
-
-"""
-    try:
-        open_url(url=resource_url,data=json.dumps(payload),timeout=600,
-             headers=headers,method="POST",
-             validate_certs=verify,url_username=username,
-             url_password=password,force_basic_auth=True)
-
+    if module.params['sgname'] not in sglist:
+        dellemc.create_non_empty_storagegroup(srp_id='SRP_1',
+                                              sg_id=module.params['sgname'],
+                                              slo=module.params['slo'],
+                                              num_vols=module.params[
+                                                  'num_vols'],
+                                              vol_size=module.params[
+                                                  'vol_size'],
+                                              cap_unit=module.params[
+                                                  'cap_unit'],
+                                              workload=None
+                                              )
         changed = True
-    except:
-        changed = False
+
+    else:
+        module.fail_json(msg='Storage Group Already Exists')
 
     module.exit_json(changed=changed)
 
-"""
+
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *

@@ -3,7 +3,6 @@
 
 from __future__ import absolute_import, division, print_function
 import PyU4V
-
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
@@ -16,16 +15,14 @@ DOCUMENTATION = r'''
 module: dellpmax_createsg
 
 contributors: Paul Martin, Rob Mortell
-              extending the work already completed in PyU4V
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
-                  PyU4V v3.0.15
-short_description: 
-    Module to Create Host Group for Masking Storage to a Cluster, 
-    host groups are collections of hosts.  This module requires that hosts 
-    have already 
 
+short_description: 
+    module to create a port portgroup, Port Groups are sets of Front End 
+    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   
+    
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
     made to verify the scripts run with valid input.  These modules 
@@ -63,14 +60,24 @@ playbook options:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    host_id:
+    pg_id:
          description:
-            -  String value to denote hostname, No  Special Character 
+            -  String value to denote name of portgroup, No  Special Character 
             support except for _.  Case sensistive for REST Calls.
         required:True
-    initiator_list:
+    Port List:
         description:
-            - List of Initiator WWN or IQN 
+            - List of Directors and Ports to be added to the Port Group in 
+            the format 
+              {
+      "directorId": "FA-1D",
+      "portId": "4"
+                },
+                  {
+      "directorId": "FA-2D",
+      "portId": "4"
+                }
+            
         required:True
     consistent_lun:
         description:
@@ -86,30 +93,33 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Cluster
+- name: Create Port Group
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '192.168.20.63'
+        unispherehost: '10.60.156.63'
         uniport: 8443
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
-        array_id: "000197600123"
+        array_id: "000197600156"
   tasks:
-    dellpmax_createhostgroup:
+      dellpmax_createportgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
              user: "{{user}}"
              password: "{{password}}"
              array_id: "{{array_id}}"
-             host_list:
-              - "AnsibleHost1"
-              - "AnsibleHost2"
-             cluster_name: "AnsibleCluster"
-
+             port_list:
+                     -
+                      directorId: "FA-1D"
+                      portId: "4"
+                     -
+                      directorId: "FA-2D"
+                      portId: "4"
+             pg_id: "Ansible_PG"
 '''
 RETURN = r'''
 '''
@@ -126,8 +136,8 @@ def main():
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            cluster_name=dict(type='str', required=True),
-            host_list=dict(type='list', required=True),
+            pg_id=dict(type='str', required=True),
+            port_list=dict(type='list', required=True),
 
         )
     )
@@ -135,12 +145,16 @@ def main():
 
     payload = (
         {
-        "hostGroupId": module.params['cluster_name'],
-        "hostId":
-        module.params['host_list']
+            "portGroupId": module.params['pg_id'],
+            "symmetrixPortKey": module.params['port_list']
         }
     )
-    # Crete Connection to Unisphere Server to Make REST calls
+
+    headers = ({
+
+        'Content-Type': 'application/json'
+
+    })
 
     conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
                          array_id=module.params['array_id'],
@@ -157,16 +171,16 @@ def main():
     # Check for each host in the host list that it exists, otherwise fail
     # module.
 
-    configuredhostlist = dellemc.get_host_list()
+    pglist = dellemc.get_portgroup_list()
 
-    for host in configuredhostlist:
-        if host in configuredhostlist:
-            dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name']
-                                     ,host_list=module.params['host_list'])
-        else:
-            module.fail_json(msg='Host %s does not exist, failing task' % (
-                host))
+    if module.params['pg_id'] in pglist:
+        module.fail_json(msg='Portgroup %s already exists, failing task', \
+        % (portgroup))
 
+    else:
+        dellemc.create_multiport_portgroup(portgroup_id=module.params['pg_id'],
+                                           ports=module.params['port_list'])
+        changed = True
 
     module.exit_json(changed=changed)
 

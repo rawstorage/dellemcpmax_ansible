@@ -2,7 +2,7 @@
 
 
 from __future__ import absolute_import, division, print_function
-
+import PyU4V
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
@@ -96,7 +96,7 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Storage Group
+- name: Add Volumes to existing storage roup
   hosts: localhost
   connection: local
     vars:
@@ -141,52 +141,43 @@ def main():
             volumeIdentifier=dict(type='str', required=True)
         )
     )
-    # Make REST call to Unisphere Server and execute create storage group/
+    # Crete Connection to Unisphere Server to Make REST calls
 
-    payload = (
-        {
-            "editStorageGroupActionParam": {
-                "expandStorageGroupParam": {
-                    "addVolumeParam": {
-                        "num_of_vols": module.params['num_vols'],
-                        "emulation": "FBA",
-                        "volumeIdentifier": {
-                            "identifier_name": module.params['volumeIdentifier'],
-                            "volumeIdentifierChoice": "identifier_name"
-                        },
-                        "volumeAttribute": {
-                            "volume_size": module.params['vol_size'],
-                            "capacityUnit": module.params['cap_unit']
-                        }
-                    }
-                }
-            }
-        }
-    )
+    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+                         array_id=module.params['array_id'],
+                         verify=module.params['verifycert'],
+                         username=module.params['user'],
+                         password=module.params['password'],
+                         u4v_version=module.params['universion'])
 
-    headers = ({
+    #Setting connection shortcut to Provisioning modules to simplify code
 
-        'Content-Type': 'application/json'
+    dellemc = conn.provisioning
 
-    })
+    changed = False
+    # Compile a list of existing stroage groups.
 
-    resource_url = "https://{}:8443/univmax/restapi/{" \
-                   "}/sloprovisioning/symmetrix" \
-                   "/{}/storagegroup/{}".format \
-        (module.params['unispherehost'],module.params['universion'],
-         module.params['array_id'],module.params['sgname'])
+    sglist = dellemc.get_storage_group_list()
 
-    verify = module.params['verifycert']
-    username = module.params['user']
-    password = module.params['password']
-    print(resource_url)
-    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="PUT",
-             validate_certs=verify, url_username=username,
-             url_password=password, force_basic_auth=True)
+    # Check if Storage Group already exists
 
-    module.exit_json(changed=True)
+    if module.params['sgname'] not in sglist:
+        module.fail_json(msg='Storage group does not Exist, Failing Task')
 
+    else:
+        dellemc.add_new_vol_to_storagegroup(sg_id=module.params['sgname'],
+                                            num_vols=module.params['num_vols'],
+                                            cap_unit=module.params['cap_unit'],
+                                            vol_size=module.params['vol_size'],
+                                            vol_name=module.params[
+                                                'volumeIdentifier'],
+                                            async=False
+
+                                            )
+        changed = True
+
+
+    module.exit_json(changed=changed)
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
