@@ -14,14 +14,17 @@ DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
 
-contributors: Paul Martin, Rob Mortell
+Author: Paul Martin @rawstorage
+
+Contributors: Rob Mortell @robmortell
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
     module to create a port portgroup, Port Groups are sets of Front End 
-    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   
+    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   Port 
+    Group name needs to be unique and not already exist.
     
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
@@ -33,8 +36,8 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
-
+    VMAX All Flash, VMAX3, or PowerMax storage Array
+    Python module PyU4V also needs to be installed from pip or PyPi
 
 
 playbook options:
@@ -174,8 +177,7 @@ def main():
     pglist = dellemc.get_portgroup_list()
 
     if module.params['pg_id'] in pglist:
-        module.fail_json(msg='Portgroup %s already exists, failing task', \
-        % (portgroup))
+        module.fail_json(msg='Portgroup already exists, failing task')
 
     else:
         dellemc.create_multiport_portgroup(portgroup_id=module.params['pg_id'],
