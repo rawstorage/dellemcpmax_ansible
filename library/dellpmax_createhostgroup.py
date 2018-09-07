@@ -15,12 +15,14 @@ DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
 
-contributors: Paul Martin, Rob Mortell
-              extending the work already completed in PyU4V
+Author: Paul Martin @rawstorage
+
+Contributors: Rob Mortell @robmortell
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
                   PyU4V v3.0.15
+                  
 short_description: 
     Module to Create Host Group for Masking Storage to a Cluster, 
     host groups are collections of hosts.  This module requires that hosts 
@@ -36,7 +38,9 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
+    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
+    also needs to be installed from pip or PyPi
+    
 
 
 

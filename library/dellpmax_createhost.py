@@ -14,14 +14,16 @@ DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
 
-contributors: Paul Martin, Rob Mortell
+Author: Paul Martin @rawstorage
+
+Contributors: Rob Mortell @robmortell
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
-    module to add new volumes to existing storage group. This module can be 
-    repeated multiple times in a playbook.
+    Module to Create a new storage group. Storage group name must be unique 
+    and not already exist on the array.
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
@@ -33,7 +35,8 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
+    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
+    also needs to be installed from pip or PyPi
 
 
 
