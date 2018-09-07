@@ -173,7 +173,8 @@ def main():
         dellemc.create_masking_view_existing_components(port_group_name=module.params['pg_id'],
                                                         masking_view_name=module.params['maskingview_id'],
                                                         storage_group_name=module.params['sgname'],
-                                                        host_name= module.params['host_or_cluster')
+                                                        host_name=
+                                                        module.params['host_or_cluster'])
         changed = True
 
     else:

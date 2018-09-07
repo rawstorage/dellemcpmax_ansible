@@ -174,8 +174,7 @@ def main():
     pglist = dellemc.get_portgroup_list()
 
     if module.params['pg_id'] in pglist:
-        module.fail_json(msg='Portgroup %s already exists, failing task', \
-        % (portgroup))
+        module.fail_json(msg='Portgroup already exists, failing task')
 
     else:
         dellemc.create_multiport_portgroup(portgroup_id=module.params['pg_id'],

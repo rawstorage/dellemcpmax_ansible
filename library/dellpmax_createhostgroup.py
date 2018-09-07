@@ -158,18 +158,23 @@ def main():
     # module.
 
     configuredhostlist = dellemc.get_host_list()
+    hostgrouplist=dellemc.get_hostgroup_list()
 
-    for host in configuredhostlist:
-        if host in configuredhostlist:
-            dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name']
-                                     ,host_list=module.params['host_list'])
-        else:
-            module.fail_json(msg='Host %s does not exist, failing task' % (
-                host))
+    host_exists = True
 
+    if module.params['cluster_name'] not in hostgrouplist:
+        for host in configuredhostlist:
+            if host not in configuredhostlist:
+                module.fail_json(msg='Host %s does not exist, failing task' % (
+                    host))
+                host_exists = False
 
-    module.exit_json(changed=changed)
-
+    if host_exists:
+        dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name']
+                             ,host_list=module.params['host_list'])
+        module.exit_json(changed=changed)
+    else:
+        module.exit_json(changed=changed)
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
