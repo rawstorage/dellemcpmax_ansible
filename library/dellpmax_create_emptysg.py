@@ -111,7 +111,7 @@ EXAMPLES = r'''
         array_id: '000197600123'
 
   tasks:
-   - name: Create New Storage Group and add data volumes
+   - name: Create New Storage Group
     dellpmax_create_emptysg:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
