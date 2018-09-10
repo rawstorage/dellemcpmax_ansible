@@ -83,27 +83,6 @@ playbook options:
             - Block workload type, optional and can only be set on VMAX3 
             Hybrid Storage Arrays.  Default None.
         required:Optional
-    num_vols:
-        description:
-           - integer value for the number of volumes. Minimum is 1, module 
-           will fail if less than one volume is specified or value is 0.
-           
-        notes:
-            -if volumes are required of different sizes, addional tasks 
-            should be added to playbooks to use dellpmax_addvolume module
-           
-        required:True
-    vol_size:
-        description:
-            - Integer value for the size of volumes.  All volumes will be 
-            created with same size.  Use dellpmax_addvol to add additional 
-            volumes if you require different sized volumes once storage 
-            group is created.
-        required:True
-    cap_unit: 
-        description:
-            - String value, Unit of capacity for GB,TB,MB or CYL
-        required:Optional default is set to GB
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
         be submitted to job queue and executed.  Task Id will be returned in 
