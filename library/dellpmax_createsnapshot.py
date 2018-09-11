@@ -97,8 +97,6 @@ EXAMPLES = r'''
 RETURN = r'''
 '''
 
-
-
 def main():
     changed = False
     module = AnsibleModule(
@@ -124,9 +122,15 @@ def main():
                          password=module.params['password'],
                          u4v_version=module.params['universion'])
 
-    dellemc=conn.replication
+    prov=conn.provisioning
+    rep=conn.replication
+    sglist=prov.get_storage_group_list()
 
-    dellemc.create_storagegroup_snap(sg_name=module.params['sgname'],
+    if module.params['sgname'] not in sglist:
+        module.fail_json(msg='Storage Group Does Not Exist')
+
+    else:
+        rep.create_storagegroup_snap(sg_name=module.params['sgname'],
                                      snap_name=module.params[
                                          'snapshotname'],ttl=module.params[
             'ttl'],hours=module.params['timeinhours'])
