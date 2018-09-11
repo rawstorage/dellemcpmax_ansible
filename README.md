@@ -89,6 +89,7 @@ Using module file /usr/lib/python2.7/dist-packages/ansible/modules/storage/delle
 <127.0.0.1> EXEC /bin/sh -c 'rm -f -r /root/.ansible/tmp/ansible-tmp-1536663703.62-184754246264574/ > /dev/null 2>&1 && sleep 0'
  [WARNING]: Module did not set no_log for password
 
+
 changed: [localhost] => {
     "changed": true,
     "invocation": {
