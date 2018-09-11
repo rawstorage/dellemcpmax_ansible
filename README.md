@@ -29,13 +29,13 @@ createemptysg.yml
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '10.60.156.63'
+        unispherehost: '192.168.156.63'
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
         sgname: 'Ansible_EMPTYSG'
-        array_id: '000197600156'
+        array_id: '000197600123'
   tasks:
   - name: Create New Empty Storage Group
     dellpmax_create_emptysg:
