@@ -6,13 +6,20 @@ requirements:
     VMAX All Flash, VMAX3, or PowerMAX storage Array
     
     Installation Instructions
-    
-Library Directory must be subdirectory from current working directory on ansible server.  Playbooks can then be run from current working directory with ansible-playbook commands.
+
+Copy contents of Library Directory to 
+
+/usr/lib/python2.7/dist-packages/ansible/modules/storage/dellemc
+
+Playbooks can then be run from any working directory with ansible-playbook commands
+
+Before running any dellemc modules as part of your playbooks, you will need to install additional python modules.
 
 Requires PyU4V installable from PIP
 
 apt-get install python-pip
 
 pip install PyU4V
+
 
 
