@@ -21,31 +21,3 @@ apt-get install python-pip
 
 pip install PyU4V
 
-
-Example--
-createemptysg.yml
-
-- name: Simple Sample Playbook
-  hosts: localhost
-  connection: local
-  vars:
-        unispherehost: '192.168.156.63'
-        universion: "90"
-        verifycert: False
-        user: 'smc'
-        password: 'smc'
-        sgname: 'Ansible_EMPTYSG'
-        array_id: '000197600123'
-  tasks:
-  - name: Create New Empty Storage Group
-    dellpmax_create_emptysg:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        array_id: "{{array_id}}"
-        srp_id: 'SRP_1'
-        slo: 'Diamond'
-        workload: None
