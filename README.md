@@ -9,7 +9,7 @@ requirements:
 
 Copy contents of Library Directory to 
 
-/usr/lib/python2.7/dist-packages/ansible/modules/storage/dellemc
+/usr/lib/python2.7/dist-packages/ansible/modules/storage/dellpmax
 
 Playbooks can then be run from any working directory with ansible-playbook commands
 
