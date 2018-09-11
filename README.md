@@ -13,7 +13,7 @@ Copy contents of Library Directory to
 
 Playbooks can then be run from any working directory with ansible-playbook commands
 
-Before running any dellemc modules as part of your playbooks, you will need to install additional python modules.
+Before running any dellpmax modules as part of your playbooks, you will need to install additional python modules.
 
 Requires PyU4V installable from PIP
 
