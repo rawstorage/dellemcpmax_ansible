@@ -1,9 +1,8 @@
 #!/usr/bin/python
+from ansible.module_utils.six.moves.urllib.error import HTTPError
 
-
-from __future__ import absolute_import, division, print_function
-import PyU4V
 __metaclass__ = type
+import PyU4V
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
                     'status': ['preview'],
@@ -14,33 +13,33 @@ DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
 
-Author: Paul Martin @rawstorage
-
-Contributors: Rob Mortell @robmortell
+contributors: Paul Martin, Rob Mortell
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
+                  
+short_description: module to create storage group on Dell EMC PowerMax VMAX 
+All Flash or VMAX3 storage arrays.
 
-short_description: 
-    Module to Create a new storage group. Storage group name must be unique 
-    and not already exist on the array.
 
 notes:
-    - This module has been tested against UNI 9.0.  Every effort has been 
+    - This module has been tested against UNI 9.0.    Every effort has been 
     made to verify the scripts run with valid input.  These modules 
     are a tech preview.  Additional error handling will be added at a later 
     date, base functionality only right now.
 
-
-
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
-    also needs to be installed from pip or PyPi
-
-
+    VMAX All Flash, VMAX3, or PowerMax storage Array
+    Also requires PyU4V to be installed from PyPi using PIP
+    python -m pip install PyU4V
 
 playbook options:
+    Note:- Some Options are repeated across modules, we will look at 
+    reducing these in future work, however you can use variables in your 
+    playbook at the outset and reference in the task to reduce error, 
+    this also allows flexibility in versioning within a single playbook.   
+    
     unispherehost:
         description:
             - Full Qualified Domain Name or IP address of Unisphere for 
@@ -59,80 +58,91 @@ playbook options:
         required:True             
 
         required: True
+    sgname:
+        description:
+            - Storage Group name
+        required:True     
     array_id:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    host_id:
-         description:
-            -  String value to denote hostname, No  Special Character 
-            support except for _.  Case sensistive for REST Calls.
-        required:True
-    initiator_list:
+    srp_id:
         description:
-            - List of Initiator WWN or IQN 
-        required:True
-    consistent_lun:
+            - Storage Resource Pool Name, Default is set to SRP_1, if your 
+            system has mainframe or multiple pools you can set this to a 
+            different value to match your environemtn
+        required:Optional
+    slo:
         description:
-            - Boolean Value, specifying consistent_lun ensures LUN address 
-            consistency across ports, this is not required on most modern 
-            operating systems as WWN or UUID is used to Uniqely identify luns
-        required:True    
+            - Service Level for the storage group, Supported on VMAX3 and All 
+            Flash and PoweMAX NVMe Arrays running PowerMAX OS 5978 and 
+            above.  Default is set to Diamond, but user can override this.
+        required: Optional
+    workload:
+        description:
+            - Block workload type, optional and can only be set on VMAX3 
+            Hybrid Storage Arrays.  Default None.
+        required:Optional
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
         be submitted to job queue and executed.  Task Id will be returned in 
         JSON for lookup purposed to check job completion status. 
+    volumeIdentifier:
+        description:
+        String up to 64 Characters no special character other than _ 
+        Provides an optional name or ID to make volumes easily identified on 
+        system hosts can run Dell EMC inq utility to identify volumes e.g.
+        inq -identify device_name 
+        required:Optional 
 
 '''
 
 EXAMPLES = r'''
-- name: Create Host
+- name: Create Storage Group
   hosts: localhost
   connection: local
+  no_log: True
   vars:
-        unispherehost: '192.168.20.63'
-        uniport: 8443
+        unispherehost: '192.168.156.63'
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
-        array_id: "000197600123"
+        array_id: '000197600123'
+
   tasks:
-  - name: Create Host2
-    dellpmax_createhost:
+   - name: Create New Storage Group
+    dellpmax_create_emptysg:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
+        sgname: "{{sgname}}"
         array_id: "{{array_id}}"
-        initiator_list:
-        - 10000000c98ffea2
-        - 10000000c98ffeb3
-        host_id: "AnsibleHost2"
-
+        srp_id:	'SRP_1'
+        slo: 'Diamond'
+        workload: None
 '''
 RETURN = r'''
 '''
 
-
 def main():
-
     module = AnsibleModule(
         argument_spec=dict(
+            sgname=dict(type='str',required=True),
             unispherehost=dict(required=True),
             universion=dict(type='int', required=False),
             verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            host_id=dict(type='str', required=True),
-            initiator_list=dict(type='list', required=True),
+            srp_id=dict(type='str', required=False),
+            slo=dict(type='str', required=False),
+            workload=dict(type='str', required=False)
 
         )
     )
-
-#Crete Connection to Unisphere Server to Make REST calls
 
     conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
                          array_id=module.params['array_id'],
@@ -141,29 +151,36 @@ def main():
                          password=module.params['password'],
                          u4v_version=module.params['universion'])
 
-    # Setting connection shortcut to Provisioning modules to simplify code
-
     dellemc = conn.provisioning
+
+    # Make REST call to Unisphere Server and execute create storage group
 
     changed = False
     # Compile a list of existing stroage groups.
 
-    hostlist = dellemc.get_host_list()
+    sglist = dellemc.get_storage_group_list()
 
-    # Check if Host Name already exists
+    # Check if Storage Group already exists
 
-    if module.params['host_id'] not in hostlist:
-        dellemc.create_host(host_name=module.params['host_id'],
-                            initiator_list=module.params['initiator_list'])
+    if module.params['sgname'] not in sglist:
+        dellemc.create_empty_sg(srp_id='SRP_1',
+                                              sg_id=module.params['sgname'],
+                                              slo=module.params['slo'],
+                                              workload=None
+                                              )
         changed = True
 
     else:
-        module.fail_json(msg='Host Name already exists, Failing Task')
+        module.fail_json(msg='Storage Group Already Exists')
 
     module.exit_json(changed=changed)
+
+
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
 
 if __name__ == '__main__':
     main()
+
+

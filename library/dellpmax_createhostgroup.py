@@ -2,6 +2,7 @@
 
 
 from __future__ import absolute_import, division, print_function
+import PyU4V
 
 __metaclass__ = type
 
@@ -14,11 +15,14 @@ DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
 
-contributors: Paul Martin, Rob Mortell
+Author: Paul Martin @rawstorage
+
+Contributors: Rob Mortell @robmortell
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
-
+                  PyU4V v3.0.15
+                  
 short_description: 
     Module to Create Host Group for Masking Storage to a Cluster, 
     host groups are collections of hosts.  This module requires that hosts 
@@ -34,7 +38,9 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
+    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
+    also needs to be installed from pip or PyPi
+    
 
 
 
@@ -138,28 +144,41 @@ def main():
         module.params['host_list']
         }
     )
+    # Crete Connection to Unisphere Server to Make REST calls
 
-    headers = ({
+    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+                         array_id=module.params['array_id'],
+                         verify=module.params['verifycert'],
+                         username=module.params['user'],
+                         password=module.params['password'],
+                         u4v_version=module.params['universion'])
 
-        'Content-Type': 'application/json'
+    # Setting connection shortcut to Provisioning modules to simplify code
 
-    })
+    dellemc = conn.provisioning
 
-    resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
-                   "symmetrix/{}/hostgroup/".format \
-        (module.params['unispherehost'], module.params['universion'],
-         module.params['array_id'])
-    verify = module.params['verifycert']
-    username = module.params['user']
-    password = module.params['password']
-    print(resource_url)
-    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="POST",
-             validate_certs=verify, url_username=username,
-             url_password=password, force_basic_auth=True)
+    changed = False
+    # Check for each host in the host list that it exists, otherwise fail
+    # module.
 
-    module.exit_json(changed=True)
+    configuredhostlist = dellemc.get_host_list()
+    hostgrouplist=dellemc.get_hostgroup_list()
 
+    host_exists = True
+
+    if module.params['cluster_name'] not in hostgrouplist:
+        for host in configuredhostlist:
+            if host not in configuredhostlist:
+                module.fail_json(msg='Host %s does not exist, failing task' % (
+                    host))
+                host_exists = False
+
+    if host_exists:
+        dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name']
+                             ,host_list=module.params['host_list'])
+        module.exit_json(changed=changed)
+    else:
+        module.exit_json(changed=changed)
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *

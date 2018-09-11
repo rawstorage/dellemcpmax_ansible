@@ -2,7 +2,7 @@
 
 
 from __future__ import absolute_import, division, print_function
-
+import PyU4V
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
@@ -14,14 +14,17 @@ DOCUMENTATION = r'''
 ---
 module: dellpmax_createsg
 
-contributors: Paul Martin, Rob Mortell
+Author: Paul Martin @rawstorage
+
+Contributors: Rob Mortell @robmortell
 
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
     module to create a port portgroup, Port Groups are sets of Front End 
-    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   
+    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   Port 
+    Group name needs to be unique and not already exist.
     
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
@@ -33,8 +36,8 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
-
+    VMAX All Flash, VMAX3, or PowerMax storage Array
+    Python module PyU4V also needs to be installed from pip or PyPi
 
 
 playbook options:
@@ -105,7 +108,7 @@ EXAMPLES = r'''
         password: 'smc'
         array_id: "000197600156"
   tasks:
-      dellpmax_portgroup:
+      dellpmax_createportgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
@@ -156,19 +159,32 @@ def main():
 
     })
 
-    resource_url = "https://{}:8443/univmax/restapi/{}/sloprovisioning/" \
-                   "symmetrix/{}/portgroup/".format \
-        (module.params['unispherehost'], module.params['universion'],
-         module.params['array_id'])
-    verify = module.params['verifycert']
-    username = module.params['user']
-    password = module.params['password']
-    open_url(url=resource_url, data=json.dumps(payload), timeout=600,
-             headers=headers, method="POST",
-             validate_certs=verify, url_username=username,
-             url_password=password, force_basic_auth=True)
+    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+                         array_id=module.params['array_id'],
+                         verify=module.params['verifycert'],
+                         username=module.params['user'],
+                         password=module.params['password'],
+                         u4v_version=module.params['universion'])
 
-    module.exit_json(changed=True)
+    # Setting connection shortcut to Provisioning modules to simplify code
+
+    dellemc = conn.provisioning
+
+    changed = False
+    # Check for each host in the host list that it exists, otherwise fail
+    # module.
+
+    pglist = dellemc.get_portgroup_list()
+
+    if module.params['pg_id'] in pglist:
+        module.fail_json(msg='Portgroup already exists, failing task')
+
+    else:
+        dellemc.create_multiport_portgroup(portgroup_id=module.params['pg_id'],
+                                           ports=module.params['port_list'])
+        changed = True
+
+    module.exit_json(changed=changed)
 
 
 from ansible.module_utils.basic import *
