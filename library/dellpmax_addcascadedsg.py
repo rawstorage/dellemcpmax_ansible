@@ -73,7 +73,28 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-C
+- name: Simple Sample Playbook
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.156.63'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        array_id: '000197600123'
+  tasks:
+  - name: add child sg to parent
+    dellpmax_addcascadedsg:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        parent_sg: 'ansible_p'
+        child_sg: 'ansible_d'
+        array_id: "{{array_id}}"
+
 '''
 RETURN = r'''
 '''

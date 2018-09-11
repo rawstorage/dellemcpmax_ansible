@@ -18,12 +18,15 @@ contributors: Paul Martin, Rob Mortell
 software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
                   
-short_description: module to create storage group on Dell EMC PowerMax VMAX 
-All Flash or VMAX3 storage arrays.
+short_description: 
+    - module to create an Empty storage group on Dell EMC PowerMax, An Empty 
+    SG is usually created for Parent Child Relationship, child storage group 
+    can be created with dellpmax_createsg module and added with 
+    dellpmax_addcasascadedsg module  
 
 
 notes:
-    - This module has been tested against UNI 9.0.    Every effort has been 
+    - This module has been tested against UNI 9.0. Every effort has been 
     made to verify the scripts run with valid input.  These modules 
     are a tech preview.  Additional error handling will be added at a later 
     date, base functionality only right now.
@@ -70,13 +73,14 @@ playbook options:
         description:
             - Storage Resource Pool Name, Default is set to SRP_1, if your 
             system has mainframe or multiple pools you can set this to a 
-            different value to match your environemtn
+            different value to match your environemt
         required:Optional
     slo:
         description:
             - Service Level for the storage group, Supported on VMAX3 and All 
             Flash and PoweMAX NVMe Arrays running PowerMAX OS 5978 and 
-            above.  Default is set to Diamond, but user can override this.
+            above.  Default is set to None as it is expected user will set 
+            at child storage group.
         required: Optional
     workload:
         description:
@@ -87,31 +91,24 @@ playbook options:
         Optional Parameter to set REST call to run Asyncronously, job will 
         be submitted to job queue and executed.  Task Id will be returned in 
         JSON for lookup purposed to check job completion status. 
-    volumeIdentifier:
-        description:
-        String up to 64 Characters no special character other than _ 
-        Provides an optional name or ID to make volumes easily identified on 
-        system hosts can run Dell EMC inq utility to identify volumes e.g.
-        inq -identify device_name 
-        required:Optional 
+
 
 '''
 
 EXAMPLES = r'''
-- name: Create Storage Group
+- name: Simple Sample Playbook
   hosts: localhost
   connection: local
-  no_log: True
   vars:
         unispherehost: '192.168.156.63'
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
+        sgname: 'Ansible_EMPTYSG'
         array_id: '000197600123'
-
   tasks:
-   - name: Create New Storage Group
+  - name: Create New Empty Storage Group
     dellpmax_create_emptysg:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
@@ -120,9 +117,10 @@ EXAMPLES = r'''
         password: "{{password}}"
         sgname: "{{sgname}}"
         array_id: "{{array_id}}"
-        srp_id:	'SRP_1'
-        slo: 'Diamond'
+        srp_id: 'SRP_1'
+        slo: None
         workload: None
+
 '''
 RETURN = r'''
 '''
