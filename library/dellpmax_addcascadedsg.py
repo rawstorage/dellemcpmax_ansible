@@ -19,14 +19,11 @@ software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
                   
 short_description: 
-    - module to create an Empty storage group on Dell EMC PowerMax, An Empty 
-    SG is usually created for Parent Child Relationship, child storage group 
-    can be created with dellpmax_createsg module and added with 
-    dellpmax_addcasascadedsg module  
-
+    - module to add Child SG to Parent storage group on Dell EMC PowerMax, 
+    Storage Groups must already exist and either be an empty SG or 
 
 notes:
-    - This module has been tested against UNI 9.0. Every effort has been 
+    - This module has been tested against UNI 9.0.    Every effort has been 
     made to verify the scripts run with valid input.  These modules 
     are a tech preview.  Additional error handling will be added at a later 
     date, base functionality only right now.
@@ -61,37 +58,17 @@ playbook options:
         required:True             
 
         required: True
-    sgname:
+    parent_sg:
         description:
-            - Storage Group name
+            - Storage Group name for parent storage group
         required:True     
     array_id:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    srp_id:
+    child_sg:
         description:
-            - Storage Resource Pool Name, Default is set to SRP_1, if your 
-            system has mainframe or multiple pools you can set this to a 
-            different value to match your environemt
-        required:Optional
-    slo:
-        description:
-            - Service Level for the storage group, Supported on VMAX3 and All 
-            Flash and PoweMAX NVMe Arrays running PowerMAX OS 5978 and 
-            above.  Default is set to None as it is expected user will set 
-            at child storage group.
-        required: Optional
-    workload:
-        description:
-            - Block workload type, optional and can only be set on VMAX3 
-            Hybrid Storage Arrays.  Default None.
-        required:Optional
-    async:
-        Optional Parameter to set REST call to run Asyncronously, job will 
-        be submitted to job queue and executed.  Task Id will be returned in 
-        JSON for lookup purposed to check job completion status. 
-
+            - Storage Group Name for Child SG
 
 '''
 
@@ -105,21 +82,18 @@ EXAMPLES = r'''
         verifycert: False
         user: 'smc'
         password: 'smc'
-        sgname: 'Ansible_EMPTYSG'
         array_id: '000197600123'
   tasks:
-  - name: Create New Empty Storage Group
-    dellpmax_create_emptysg:
+  - name: add child sg to parent
+    dellpmax_addcascadedsg:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: "{{sgname}}"
+        parent_sg: 'ansible_p'
+        child_sg: 'ansible_d'
         array_id: "{{array_id}}"
-        srp_id: 'SRP_1'
-        slo: None
-        workload: None
 
 '''
 RETURN = r'''
@@ -128,17 +102,14 @@ RETURN = r'''
 def main():
     module = AnsibleModule(
         argument_spec=dict(
-            sgname=dict(type='str',required=True),
             unispherehost=dict(required=True),
             universion=dict(type='int', required=False),
             verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            srp_id=dict(type='str', required=False),
-            slo=dict(type='str', required=False),
-            workload=dict(type='str', required=False)
-
+            parent_sg=dict(type='str', required=True),
+            child_sg=dict(type='str', required=True)
         )
     )
 
@@ -160,16 +131,14 @@ def main():
 
     # Check if Storage Group already exists
 
-    if module.params['sgname'] not in sglist:
-        dellemc.create_empty_sg(srp_id='SRP_1',
-                                              sg_id=module.params['sgname'],
-                                              slo=module.params['slo'],
-                                              workload=None
-                                              )
+    if module.params['parent_sg'] and module.params['child_sg'] in sglist:
+        dellemc.add_child_sg_to_parent_sg(child_sg=module.params[
+            'child_sg'],parent_sg=module.params['parent_sg'])
         changed = True
 
     else:
-        module.fail_json(msg='Storage Group Already Exists')
+        module.fail_json(msg='Both Parent and Child SG must exist for module '
+                             'to run sucessfully')
 
     module.exit_json(changed=changed)
 
