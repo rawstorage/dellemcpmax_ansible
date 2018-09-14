@@ -1,4 +1,4 @@
-- name: Create SnapVX SnapShot of existing Storage Group
+- name: Link SnapVX SnapShot of existing SG, to another SG.
   hosts: localhost
   connection: local
   vars:
@@ -9,16 +9,15 @@
         password: 'smc'
 
   tasks:
-  - name: Create SnapShot
-    dellpmax_createsnapshot:
+  - name: Link SnapShot
+    dellpmax_link_snap_inc_gen:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: 'Ansible_Rob'
         array_id: '000197600156'
-        ttl: 8
+        sgname: 'Ansible_Rob'
         snapshotname: 'Ansible_Rob_SnapShot_1'
-        timeinhours: True
-
+        gen_num: '1'
+        target_sgname: 'Ansible_Rob_SnapShot_1'
