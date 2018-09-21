@@ -19,8 +19,10 @@ contributors: Paul Martin, Rob Mortell
 software versions=ansible 2.6.3
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
-short_description: module to create a snapvx snapshot, of an existing storage group on Dell EMC PowerMax VMAX
-All Flash or VMAX3 storage array.
+short_description: module to create a snapvx snapshot, of an existing storage
+group on Dell EMC PowerMax VMAX All Flash or VMAX3 storage array. Once 
+snapshot is created you can use dellpmax_snap_action module to link relink 
+or unlink snapshots.
 
 
 notes:
