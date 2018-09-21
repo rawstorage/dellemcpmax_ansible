@@ -18,9 +18,14 @@ contributors: Paul Martin, Rob Mortell
 software versions=ansible 2.6.3
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
-short_description: module to create a snapvx snapshot, of an existing storage group on Dell EMC PowerMax VMAX
-All Flash or VMAX3 storage array.
+short_description: module to create a snapvx snapshot, of an existing storage 
+group on Dell EMC PowerMax VMAX All Flash or VMAX3 storage array. If 
+Generation is not specified the module will link the latest version of a 
+snapshot providing both storage group name is valid and has a snapshot of 
+the specified name.  Module will check to see if storage group exists. 
 
+#TODO add check to make sure stroage group is not empty right now this will 
+fail
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been
@@ -64,6 +69,13 @@ playbook options:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
+        
+    snapshotname:
+        Name of the snapshot to be linked
+    target_sgname:
+        Name of the Target Stroage group, if TGT stroage group doesn't 
+        exist, it will be created with correct number of volumes and 
+        snapshot will be linked.
 '''
 
 EXAMPLES = r'''
@@ -123,17 +135,20 @@ def main():
     prov=conn.provisioning
     rep=conn.replication
     sglist=prov.get_storage_group_list()
+    snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
 
-    if module.params['target_sgname'] not in sglist:
+    if module.params['sgname'] in sglist and module.params['snapshotname'] \
+            in snaplist :
         rep.link_gen_snapshot(sg_id=module.params['sgname'],
                               snap_name=module.params['snapshotname'],
-                              link_sg_name=module.params['target_sgname']
-                              )
+                              link_sg_name=module.params['target_sgname'],
+                              async = True)
+        changed = True
 
-        module.exit_json(changed=True)
+        module.exit_json(changed=changed)
 
     else:
-        module.fail_json(msg='Storage Group Already Exists')
+        module.fail_json(msg='No Snapshot found with the supplied Parameters')
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
