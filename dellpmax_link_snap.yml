@@ -10,7 +10,7 @@
 
  tasks:
   - name: Link SnapShot
-    dellpmax_link_snap:
+    dellpmax_manage_snap:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
