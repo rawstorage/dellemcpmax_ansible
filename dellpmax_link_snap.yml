@@ -20,4 +20,4 @@
         sgname: 'Ansible_SG'
         snapshotname: 'Ansible_SnapShot_1'
         target_sgname: 'Ansible_link_SG'
-        action: 'link' #unlink and relink are also valid options
+        action: 'link' # unlink and relink are also valid options
