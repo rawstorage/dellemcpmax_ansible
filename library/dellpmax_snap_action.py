@@ -18,9 +18,14 @@ contributors: Paul Martin, Rob Mortell
 software versions=ansible 2.6.3
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
-short_description: module to create a snapvx snapshot, of an existing storage group on Dell EMC PowerMax VMAX
-All Flash or VMAX3 storage array.
+short_description: module to create a snapvx snapshot, of an existing storage 
+group on Dell EMC PowerMax VMAX All Flash or VMAX3 storage array. If 
+Generation is not specified the module will link the latest version of a 
+snapshot providing both storage group name is valid and has a snapshot of 
+the specified name.  Module will check to see if storage group exists. 
 
+#TODO add check to make sure stroage group is not empty right now this will 
+fail
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been
@@ -64,6 +69,13 @@ playbook options:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
+        
+    snapshotname:
+        Name of the snapshot to be linked
+    target_sgname:
+        Name of the Target Stroage group, if TGT stroage group doesn't 
+        exist, it will be created with correct number of volumes and 
+        snapshot will be linked.
 '''
 
 EXAMPLES = r'''
@@ -78,21 +90,21 @@ EXAMPLES = r'''
         user: 'smc'
         password: 'smc'
 
+
   tasks:
-  - name: Create SnapShot
-    dellpmax_createsnapshot:
+  - name: relink SnapShot
+    dellpmax_snap_action:
         unispherehost: "{{unispherehost}}"
-        port: "{{uniport}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: 'Ansible_test1234'
-        array_id: '000197623456'
-        ttl: 1
-        snapshotname: 'Ansible_SnapShot'
-        timeinhours: True
-'''
+        array_id: '000197600123'
+        sgname: 'Ansible_SG'
+        snapshotname: 'Ansible_Rob_SnapShot_1'
+        target_sgname: 'Ansible_link_SG'
+        action: 'relink'
+
 RETURN = r'''
 '''
 
@@ -108,8 +120,9 @@ def main():
             array_id=dict(type='str', required=True),
             sgname=dict(type='str', required=True),
             snapshotname=dict(type='str', required=True),
-            gen_num=dict(type='int', required=True),
             target_sgname=dict(type='str', required=True),
+            action=dict(type='str',choices=['link','relink','unlink'],
+                        required=True)
         )
     )
     # Make REST call to Unisphere Server and execute create snapshot/
@@ -124,18 +137,35 @@ def main():
     prov=conn.provisioning
     rep=conn.replication
     sglist=prov.get_storage_group_list()
+    snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
 
-    if module.params['target_sgname'] not in sglist:
-        rep.link_gen_snapshot(sg_id=module.params['sgname'],
-                              snap_name=module.params['snapshotname'],
-                              gen_num=module.params['gen_num'],
-                              link_sg_name=module.params['target_sgname']
-                              )
+    if module.params['sgname'] in sglist and module.params['snapshotname'] \
+            in snaplist :
+        if module.params['action']=='link':
+            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
+                                  snap_name=module.params['snapshotname'],
+                                  target_sg_id=module.params['target_sgname'],
+                                  link=True, new_name=None, gen_num=0,
+                                  async=True)
+        elif module.params['action']=='relink':
+            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
+                                  snap_name=module.params['snapshotname'],
+                                  target_sg_id=module.params['target_sgname'],
+                                  relink=True, gen_num=0, async=True)
+        elif module.params['action']=='unlink':
+            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
+                                  snap_name=module.params['snapshotname'],
+                                         target_sg_id=module.params['target_sgname'],
+                                  unlink=True, gen_num=0,
+                                  async=True)
 
-        module.exit_json(changed=True)
+        changed = True
+
+        module.exit_json(changed=changed, msg='SnapVX Action completed '
+                                              'Sucessfully')
 
     else:
-        module.fail_json(msg='Storage Group Already Exists')
+        module.fail_json(msg='No Snapshot found with the supplied Parameters')
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
