@@ -8,7 +8,7 @@
         user: 'smc'
         password: 'smc'
 
-  tasks:
+ tasks:
   - name: Link SnapShot
     dellpmax_link_snap:
         unispherehost: "{{unispherehost}}"
@@ -17,6 +17,7 @@
         user: "{{user}}"
         password: "{{password}}"
         array_id: '000197600156'
-        sgname: 'Ansible_Rob'
-        snapshotname: 'Ansible_Rob_SnapShot_1'
-        target_sgname: 'Ansible_Rob_SnapShot_1'
+        sgname: 'Ansible_SG'
+        snapshotname: 'Ansible_SnapShot_1'
+        target_sgname: 'Ansible_link_SG'
+        action: 'link' #unlink and relink are also valid options
