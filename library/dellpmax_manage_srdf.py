@@ -135,8 +135,8 @@ def main():
 
     if module.params['sgname'] in rdf_sglist:
         rdfg_list = rep.get_storagegroup_srdfg_list(module.params['sgname'])
-        rdfg = rdfg_list[0]
         if len(rdfg_list)<=1:
+            rdfg = rdfg_list[0]
             rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
             , action=module.params['action'], rdfg=rdfg)
             changed = True
