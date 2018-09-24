@@ -106,7 +106,7 @@ EXAMPLES = r'''
         action: 'relink'
 
 RETURN = r'''
-'''
+
 
 def main():
     changed = False
