@@ -15,9 +15,7 @@ Playbooks can then be run from any working directory with ansible-playbook comma
 
 Before running any dellpmax modules as part of your playbooks, you will need to install additional python modules.
 
-Requires PyU4V installable from PIP
+Requires PyU4V Please follow installation instructions on the GitHub
 
-apt-get install python-pip
-
-pip install PyU4V
+https://github.com/ciarams87/PyU4V
 
