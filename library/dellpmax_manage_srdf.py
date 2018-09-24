@@ -5,6 +5,7 @@ import PyU4V
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
 __metaclass__ = type
+#TODO Add checks to make sure SRDF is not already in requested state
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
                     'status': ['preview'],
@@ -27,8 +28,7 @@ short_description:
     running.  Single Site SRDF support only in module.     
  
 
-#TODO add check to make sure stroage group is not empty right now this will 
-fail
+
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been
