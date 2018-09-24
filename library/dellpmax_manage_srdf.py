@@ -2,6 +2,8 @@
 
 from __future__ import absolute_import, division, print_function
 import PyU4V
+from ansible.module_utils.basic import *
+from ansible.module_utils.urls import *
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
@@ -11,18 +13,19 @@ ANSIBLE_METADATA = {'metadata_version': '1.0',
                     }
 DOCUMENTATION = r'''
 ---
-module: dellpmax_createsnapshot
+module: dellpmax_manage_srdf
 
 contributors: Paul Martin, Rob Mortell
 
 software versions=ansible 2.6.3
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
-short_description: module to create a snapvx snapshot, of an existing storage 
-group on Dell EMC PowerMax VMAX All Flash or VMAX3 storage array. If 
-Generation is not specified the module will link the latest version of a 
-snapshot providing both storage group name is valid and has a snapshot of 
-the specified name.  Module will check to see if storage group exists. 
+short_description: 
+    - Module to control SRDF state of storage group, supported actions are 
+    failover, failback, split, suspend, establish.  Requires that storage 
+    group must exist and have RDF replication already configured and 
+    running.  Single Site SRDF support only in module.     
+ 
 
 #TODO add check to make sure stroage group is not empty right now this will 
 fail
@@ -70,12 +73,6 @@ playbook options:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
         
-    snapshotname:
-        Name of the snapshot to be linked
-    target_sgname:
-        Name of the Target Stroage group, if TGT stroage group doesn't 
-        exist, it will be created with correct number of volumes and 
-        snapshot will be linked.
 '''
 
 EXAMPLES = r'''
@@ -92,21 +89,21 @@ EXAMPLES = r'''
 
 
   tasks:
-  - name: relink SnapShot
-    dellpmax_snap_action:
+  - name: Split SRDF
+    dellpmax_manage_srdf:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        array_id: '000197600123'
+        array_id: '000197600156'
         sgname: 'Ansible_SG'
-        snapshotname: 'Ansible_Rob_SnapShot_1'
-        target_sgname: 'Ansible_link_SG'
-        action: 'relink'
+        action: 'Split'
+'
 
 RETURN = r'''
-'''
+
+
 
 def main():
     changed = False
@@ -119,9 +116,8 @@ def main():
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
             sgname=dict(type='str', required=True),
-            snapshotname=dict(type='str', required=True),
-            target_sgname=dict(type='str', required=True),
-            action=dict(type='str',choices=['link','relink','unlink'],
+            action=dict(type='str',choices=['Establish','Suspend','Split',
+                                            'Failover','Failback'],
                         required=True)
         )
     )
@@ -134,41 +130,30 @@ def main():
                          username=module.params['user'],
                          password=module.params['password'])
 
-    prov=conn.provisioning
     rep=conn.replication
-    sglist=prov.get_storage_group_list()
-    snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
+    rdf_sglist = rep.get_storage_group_rep_list(has_srdf=True)
 
-    if module.params['sgname'] in sglist and module.params['snapshotname'] \
-            in snaplist :
-        if module.params['action']=='link':
-            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
-                                  snap_name=module.params['snapshotname'],
-                                  target_sg_id=module.params['target_sgname'],
-                                  link=True, new_name=None, gen_num=0,
-                                  async=True)
-        elif module.params['action']=='relink':
-            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
-                                  snap_name=module.params['snapshotname'],
-                                  target_sg_id=module.params['target_sgname'],
-                                  relink=True, gen_num=0, async=True)
-        elif module.params['action']=='unlink':
-            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
-                                  snap_name=module.params['snapshotname'],
-                                         target_sg_id=module.params['target_sgname'],
-                                  unlink=True, gen_num=0,
-                                  async=True)
-
-        changed = True
-
-        module.exit_json(changed=changed, msg='SnapVX Action completed '
-                                              'Sucessfully')
+    if module.params['sgname'] in rdf_sglist:
+        rdfg_list = rep.get_storagegroup_srdfg_list(module.params['sgname'])
+        rdfg = rdfg_list[0]
+        if len(rdfg_list)<=1:
+            rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
+            , action=module.params['action'], rdfg=rdfg)
+            changed = True
+        else:
+            module.fail_json(changed=changed,
+                msg='Specified Storage Group has mult-site RDF Protection '
+                    'Ansible Module currently supports single Site SRDF '
+                    'please use Unishpere for PowerMax UI for SRDF group '
+                    'managment')
 
     else:
-        module.fail_json(msg='No Snapshot found with the supplied Parameters')
 
-from ansible.module_utils.basic import *
-from ansible.module_utils.urls import *
+        module.fail_json(msg='Specified Storage Group is not currently SRDF '
+                             'Protected')
+
+
+    module.exit_json(changed=changed)
 
 if __name__ == '__main__':
     main()
