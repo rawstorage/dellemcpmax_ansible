@@ -17,7 +17,7 @@ Before running any dellpmax modules as part of your playbooks, you will need to 
 
 Requires PyU4V installable from PIP
 
-apt-get install python-pip
+sudo apt-get install python-pip
 
-pip install PyU4V
+sudo pip install PyU4V
 
