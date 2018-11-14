@@ -9,97 +9,95 @@
         password: 'smc'
         sgname: 'Ansible_SG'
         array_id: '000197600123'
-  tasks:
-  - name: Create New Storage Group and add data volumes
-    dellpmax_createsg:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        array_id: "{{array_id}}"
-        srp_id:	'SRP_1'
-        slo: 'Diamond'
-        workload: None
-        num_vols: 1
-        vol_size:  1
-        cap_unit: 'GB'
-        volumeIdentifier: 'Data'
-  - name: Add REDO Volumes to Storage Group
-    dellpmax_addvolume:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        array_id: "{{array_id}}"
-        num_vols: 1
-        vol_size:  2
-        cap_unit: 'GB'
-        volumeIdentifier: 'REDO'
-  - name: Create Host1
-    dellpmax_createhost:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        initiator_list:
-        - 10000000c98ffef2
-        - 10000000c98ffef3
-        host_id: "AnsibleHost1"
-  - name: Create Host2
-    dellpmax_createhost:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        initiator_list:
-        - 10000000c98ffea2
-        - 10000000c98ffeb3
-        host_id: "AnsibleHost2"
-  - name: Create Host Group
-    dellpmax_createhostgroup:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             host_list:
-              - "AnsibleHost1"
-              - "AnsibleHost2"
-             cluster_name: "AnsibleCluster"
-  - name: Create a New Port Group
-    dellpmax_createportgroup:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             port_list:
-                     -
-                      directorId: "FA-1D"
-                      portId: "4"
-                     -
-                      directorId: "FA-2D"
-                      portId: "4"
-             portgroup_id: "Ansible_PG"
-  - name: Create Masking View for Host Access
-    dellpmax_createmaskingview:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             host_or_cluster: "AnsibleCluster"
-             sgname: "{{sgname}}"
-             portgroup_id: "Ansible_PG"
-             maskingview_id: "MyMaskingView"
+tasks:
+- name: Create New Storage Group and add data volumes
+  dellpmax_createsg:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    sgname: "{{sgname}}"
+    array_id: "{{array_id}}"
+    srp_id: 'SRP_1'
+    slo: 'Diamond'
+    workload: None
+    num_vols: 1
+    vol_size:  1
+    cap_unit: 'GB'
+    volumeIdentifier: 'Data'
+- name: Add REDO Volumes to Storage Group
+  dellpmax_addvolume:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    sgname: "{{sgname}}"
+    array_id: "{{array_id}}"
+    num_vols: 1
+    vol_size:  2
+    cap_unit: 'GB'
+    volumeIdentifier: 'REDO'
+- name: Create Host1
+  dellpmax_createhost:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    initiator_list:
+    - 10000000c98ffea2
+    - 10000000c98ffeb3
+    host_id: "AnsibleHost1"
+- name: Create Host2
+  dellpmax_createhost:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    initiator_list:
+    - 10000000c98fbea2
+    - 10000000c98fbeb3
+    host_id: "AnsibleHost2"
+- name: Create Host Group
+  dellpmax_createhostgroup:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    host_list:
+    - "AnsibleHost1"
+    - "AnsibleHost2"
+    cluster_name: "AnsibleCluster"
+- name: Create a New Port Group
+  dellpmax_createportgroup:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    port_list:
+    - directorId: "FA-1D"
+      portId: "4"
+    - directorId: "FA-2D"
+      portId: "4"
+    portgroup_id: "Ansible_PG"
+- name: Create Masking View for Host Access
+  dellpmax_createmaskingview:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    host_or_cluster: "AnsibleCluster"
+    sgname: "{{sgname}}"
+    portgroup_id: "Ansible_PG"
+    maskingview_name: "Ansible_MV"
