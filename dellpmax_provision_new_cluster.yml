@@ -90,7 +90,7 @@
                      -
                       directorId: "FA-2D"
                       portId: "4"
-             pg_id: "Ansible_PG"
+             portgroup_id: "Ansible_PG"
   - name: Create Masking View for Host Access
     dellpmax_createmaskingview:
              unispherehost: "{{unispherehost}}"
@@ -101,5 +101,5 @@
              array_id: "{{array_id}}"
              host_or_cluster: "AnsibleCluster"
              sgname: "{{sgname}}"
-             pg_id: "Ansible_PG"
+             portgroup_id: "Ansible_PG"
              maskingview_id: "MyMaskingView"

@@ -3,6 +3,7 @@
 
 from __future__ import absolute_import, division, print_function
 import PyU4V
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {'metadata_version': '1.0',
@@ -22,10 +23,14 @@ software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
-    module to create a port portgroup, Port Groups are sets of Front End 
-    ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   Port 
-    Group name needs to be unique and not already exist.
-    
+    -Module to delete a Masking view. CAUTION Required when using this 
+    module, deleting a masking view will cause data unavailable, user should 
+    validate any input.   
+
+requirements:
+    -Masking View Name must be unique, Storage Group, Port Group and Host 
+    or Cluster must already be created.
+
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
     made to verify the scripts run with valid input.  These modules 
@@ -36,9 +41,8 @@ notes:
 
 Requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMax storage Array
-    Python module PyU4V also needs to be installed from pip or PyPi
-
+    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
+    also needs to be installed from pip or PyPi
 
 playbook options:
     unispherehost:
@@ -58,36 +62,16 @@ playbook options:
             -Boolean, securitly check on ssl certificates
         required:True             
 
-        required: True
     array_id:
         description:
             - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
         required:True
-    portgroup_id:
-         description:
-            -  String value to denote name of portgroup, No  Special Character 
-            support except for _.  Case sensistive for REST Calls.
-        required:True
-    Port List:
+    maskingview:
         description:
-            - List of Directors and Ports to be added to the Port Group in 
-            the format 
-              {
-      "directorId": "FA-1D",
-      "portId": "4"
-                },
-                  {
-      "directorId": "FA-2D",
-      "portId": "4"
-                }
-            
-        required:True
-    consistent_lun:
-        description:
-            - Boolean Value, specifying consistent_lun ensures LUN address 
-            consistency across ports, this is not required on most modern 
-            operating systems as WWN or UUID is used to Uniqely identify luns
-        required:True    
+            - Name ot be assigned to new Masking view, it is assumed this 
+            name must be unique and is case sensitive.  
+        required: True 
+
     async:
         Optional Parameter to set REST call to run Asyncronously, job will 
         be submitted to job queue and executed.  Task Id will be returned in 
@@ -96,33 +80,27 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Create Port Group
+- name: Create Host
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '10.60.156.63'
+        unispherehost: '192.168.20.63'
         uniport: 8443
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
-        array_id: "000197600156"
+        array_id: "000197600123"
   tasks:
-      dellpmax_createportgroup:
+    - name: Create Masking View for Host Access
+    dellpmax_deletemaskingview:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
              user: "{{user}}"
              password: "{{password}}"
              array_id: "{{array_id}}"
-             port_list:
-                     -
-                      directorId: "FA-1D"
-                      portId: "4"
-                     -
-                      directorId: "FA-2D"
-                      portId: "4"
-             portgroup_id: "Ansible_PG"
+             maskingview_name: "MyMaskingView"
 '''
 RETURN = r'''
 '''
@@ -139,25 +117,12 @@ def main():
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            portgroup_id=dict(type='str', required=True),
-            port_list=dict(type='list', required=True),
-
+            maskingview_name=dict(type='str', required=True)
         )
     )
     # Make REST call to Unisphere Server and execute create Host
 
-    payload = (
-        {
-            "portGroupId": module.params['portgroup_id'],
-            "symmetrixPortKey": module.params['port_list']
-        }
-    )
-
-    headers = ({
-
-        'Content-Type': 'application/json'
-
-    })
+    # Crete Connection to Unisphere Server to Make REST calls
 
     conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
                          array_id=module.params['array_id'],
@@ -170,19 +135,24 @@ def main():
 
     dellemc = conn.provisioning
 
+    # Make REST call to Unisphere Server and execute create storage group
+
     changed = False
-    # Check for each host in the host list that it exists, otherwise fail
-    # module.
+    # Compile a list of existing stroage groups.
 
-    pglist = dellemc.get_portgroup_list()
+    mvlist = dellemc.get_masking_view_list()
 
-    if module.params['portgroup_id'] in pglist:
-        module.fail_json(msg='Portgroup already exists, failing task')
+    # Check if Storage Group already exists
+
+    if module.params['maskingview_name'] in mvlist:
+        dellemc.delete_masking_view(
+            maskingview_name=module.params['maskingview_name']
+        )
+        changed = True
 
     else:
-        dellemc.create_multiport_portgroup(portgroup_id=module.params['portgroup_id'],
-                                           ports=module.params['port_list'])
-        changed = True
+        module.fail_json(msg='Masking View Does Not Exist, Please verify the '
+                             'input parameters')
 
     module.exit_json(changed=changed)
 

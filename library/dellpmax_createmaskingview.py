@@ -120,8 +120,8 @@ EXAMPLES = r'''
              array_id: "{{array_id}}"
              host_or_cluster: "AnsibleCluster"
              sgname: "{{sgname}}"
-             pg_id: "Ansible_PG"
-             maskingview_id: "MyMaskingView"
+             portgroup_id: "Ansible_PG"
+             maskingview_name: "MyMaskingView"
 '''
 RETURN = r'''
 '''
@@ -138,10 +138,10 @@ def main():
             user=dict(type='str', required=True),
             password=dict(type='str', required=True),
             array_id=dict(type='str', required=True),
-            sgname = dict(type='str', required=True),
+            sgname=dict(type='str', required=True),
             host_or_cluster=dict(type='str', required=True),
-            pg_id=dict(type='str', required=True),
-            maskingview_id=dict(type='str', required=True),
+            portgroup_id=dict(type='str', required=True),
+            maskingview_name=dict(type='str', required=True),
             compliancealterts=dict(type='bool',required=False)
 
         )
@@ -170,12 +170,12 @@ def main():
 
     # Check if Storage Group already exists
 
-    if module.params['maskingview_id'] not in mvlist:
-        dellemc.create_masking_view_existing_components(port_group_name=module.params['pg_id'],
-                                                        masking_view_name=module.params['maskingview_id'],
-                                                        storage_group_name=module.params['sgname'],
-                                                        host_name=
-                                                        module.params['host_or_cluster'])
+    if module.params['maskingview_name'] not in mvlist:
+        dellemc.create_masking_view_existing_components(
+            port_group_name=module.params['portgroup_id'],
+            masking_view_name=module.params['maskingview_name'],
+            host_name=module.params['host_or_cluster'],
+            storage_group_name=module.params['sgname'])
         changed = True
 
     else:
