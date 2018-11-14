@@ -120,7 +120,6 @@ def main():
             maskingview_name=dict(type='str', required=True)
         )
     )
-    # Make REST call to Unisphere Server and execute create Host
 
     # Crete Connection to Unisphere Server to Make REST calls
 
@@ -135,7 +134,6 @@ def main():
 
     dellemc = conn.provisioning
 
-    # Make REST call to Unisphere Server and execute create storage group
 
     changed = False
     # Compile a list of existing stroage groups.

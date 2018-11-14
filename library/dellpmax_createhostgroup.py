@@ -26,7 +26,8 @@ software versions=ansible 2.6.2
 short_description: 
     Module to Create Host Group for Masking Storage to a Cluster, 
     host groups are collections of hosts.  This module requires that hosts 
-    have already 
+    have already been created to be added.  Use dellpmax_createhost task in 
+    your playbook to create hosts in advance. 
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 

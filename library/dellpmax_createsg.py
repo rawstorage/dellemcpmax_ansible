@@ -186,7 +186,7 @@ def main():
     # Make REST call to Unisphere Server and execute create storage group
 
     changed = False
-    # Compile a list of existing stroage groups.
+    # Compile a list of existing storage groups.
 
     sglist = dellemc.get_storage_group_list()
 

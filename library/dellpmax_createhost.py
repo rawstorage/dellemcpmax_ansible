@@ -22,8 +22,9 @@ software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
-    Module to Create a new storage group. Storage group name must be unique 
-    and not already exist on the array.
+    Module to Create a new host from a list of initiator wwns. Host Name 
+    name must be unique and max of 32 character aphanumberic with no special 
+    characters other than _
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
@@ -146,7 +147,7 @@ def main():
     dellemc = conn.provisioning
 
     changed = False
-    # Compile a list of existing stroage groups.
+    # Compile a list of existing hosts.
 
     hostlist = dellemc.get_host_list()
 

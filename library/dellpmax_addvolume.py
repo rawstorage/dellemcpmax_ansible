@@ -97,7 +97,7 @@ playbook options:
 '''
 
 EXAMPLES = r'''
-- name: Add Volumes to existing storage roup
+- name: Add Volumes to existing storage group
   hosts: localhost
   connection: local
     vars:

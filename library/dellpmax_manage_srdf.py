@@ -121,7 +121,7 @@ def main():
                         required=True)
         )
     )
-    # Make REST call to Unisphere Server and execute create snapshot/
+    # Make REST call to Unisphere Server and execute SRDF control operation
 
     conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
                          array_id=module.params['array_id'],

@@ -155,14 +155,13 @@ def main():
 
     dellemc = conn.provisioning
 
-    # Make REST call to Unisphere Server and execute create storage group
 
     changed = False
-    # Compile a list of existing storage groups.
+
 
     pglist = dellemc.get_portgroup_list()
 
-    # Check if Storage Group already exists
+
 
     if module.params['portgroup_id'] in pglist:
         dellemc.delete_portgroup(portgroup_id=module.params['portgroup_id'])

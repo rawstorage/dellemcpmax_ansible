@@ -140,7 +140,7 @@ def main():
             host_or_cluster=dict(type='str', required=True)
         )
     )
-    # Make REST call to Unisphere Server and execute create Host
+
 
     # Crete Connection to Unisphere Server to Make REST calls
 
@@ -155,15 +155,14 @@ def main():
 
     dellemc = conn.provisioning
 
-    # Make REST call to Unisphere Server and execute create storage group
+
 
     changed = False
-    # Compile a list of existing storage groups.
+
 
     validhostlist = dellemc.get_host_list(
         filters="num_of_host_groups=0&num_of_masking_views=0")
 
-    # Check if Storage Group already exists
 
     if module.params['host_or_cluster'] in validhostlist:
         dellemc.delete_hostgroup(hostgroup_id=module.params['host_or_cluster'])

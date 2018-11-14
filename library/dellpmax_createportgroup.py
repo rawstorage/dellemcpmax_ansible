@@ -22,9 +22,11 @@ software versions=ansible 2.6.2
                   python version = 2.7.15rc1 (default, Apr 15 2018,
 
 short_description: 
-    module to create a port portgroup, Port Groups are sets of Front End 
+    module to create a portgroup, Port Groups are sets of Front End 
     ports on VMAX and PowerMAX arrays where Host HBAs are zoned.   Port 
-    Group name needs to be unique and not already exist.
+    Group name needs to be unique and not already exist.  You can't mix 
+    emulations in a port group, transport protocol must me same on all ports 
+    added 
     
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
@@ -171,8 +173,7 @@ def main():
     dellemc = conn.provisioning
 
     changed = False
-    # Check for each host in the host list that it exists, otherwise fail
-    # module.
+
 
     pglist = dellemc.get_portgroup_list()
 

@@ -21,8 +21,8 @@ software versions=ansible 2.6.3
 
 short_description: module to create a snapvx snapshot, of an existing storage
 group on Dell EMC PowerMax VMAX All Flash or VMAX3 storage array. Once 
-snapshot is created you can use dellpmax_snap_action module to link relink 
-or unlink snapshots.
+snapshot is created you can use dellpmax_manage_snap module to link relink 
+or unlink snapshots for host access.
 
 
 notes:
@@ -115,7 +115,7 @@ def main():
             timeinhours=dict(type='bool', required=True),
         )
     )
-    # Make REST call to Unisphere Server and execute create snapshot/
+    # Make REST call to Unisphere Server and execute create snapshot
 
     conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
                          array_id=module.params['array_id'],

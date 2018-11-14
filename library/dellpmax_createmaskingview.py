@@ -26,8 +26,8 @@ short_description:
     -Module to create a Masking view to provision storage to a host.  
     
 requirements:
-    -Masking View Name must be unique, Storage Group, Port Group and Host 
-    or Cluster must already be created.
+    -Masking View Name must be unique, Storage Group, Port Group and 
+    Hostgroup/Cluster must already be created.
 
 notes:
     - This module has been tested against UNI 9.0.  Every effort has been 
