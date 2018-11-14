@@ -151,8 +151,8 @@ def main():
 
 
     else:
-        module.fail_json(msg='Storage Group is Part of a Masking view, '
-                             'unable to proceed')
+        module.fail_json(msg='Storage Group Does not exist or is part of  '
+                             'Part of a Masking view unable to proceed')
 
     module.exit_json(changed=changed)
 
