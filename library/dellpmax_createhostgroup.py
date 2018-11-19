@@ -174,12 +174,12 @@ def main():
                     host))
                 host_exists = False
 
-    if host_exists:
+    if module.params['cluster_name'] not in hostgrouplist and host_exists:
         dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name']
                              ,host_list=module.params['host_list'])
         module.exit_json(changed=changed)
     else:
-        module.exit_json(changed=changed)
+        module.fail_json(msg="Cluster Name Already Exists", changed=False)
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
