@@ -168,7 +168,7 @@ def main():
     host_exists = True
 
     if module.params['cluster_name'] not in hostgrouplist:
-        for host in configuredhostlist:
+        for host in module.params["host_list"]:
             if host not in configuredhostlist:
                 module.fail_json(msg='Host %s does not exist, failing task' % (
                     host))
