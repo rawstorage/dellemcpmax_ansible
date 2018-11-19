@@ -60,13 +60,12 @@ playbook options:
         required:True
     gather_subset:
         description:
-            - Optional parameter to tell ansible which facts to gather about the system.
-                Possible values for this argument include
-                hosts, host_groups, masking_views, port_groups,
-                slo, srp, storage_groups, volumes
-                Can specify a list of values to include a larger subset.  Values can also be used
-                with an initial C(M(!)) to specify that a specific subset should
-                not be collected.
+            - Optional parameter to tell ansible which facts to gather about 
+            the system. Possible values for this argument include hosts, 
+            host_groups, masking_views, port_groups, slo, srp, 
+            storage_groups, volumes can specify a list of values to include 
+            a larger subset.  Values can also be used with an initial 
+            C(M(!)) to specify that a specific subset should not be collected.
         default: "all"
         required: false
 '''
@@ -117,7 +116,8 @@ dellpmax_facts:
 class Dellpmax_Gather_Facts(object):
     def __init__(self,module):
         self.module = module
-        self.conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
+        self.conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'],
+                                  port=8443,
                          array_id=module.params['array_id'],
                          verify=module.params['verifycert'],
                          username=module.params['user'],
@@ -178,7 +178,8 @@ class Dellpmax_Gather_Facts(object):
             },
         }
     def generic_get_object_facts(self, name):
-        ''' Generic Function to gather list of object types and get the details and return the dictionary of entries '''
+        ''' Generic Function to gather list of object types and get the details
+         and return the dictionary of entries '''
         list_func = getattr(self.dellemc, 'get_%s_list' % name)
         get_func = getattr(self.dellemc, 'get_%s' % name)
         results = {}
@@ -187,10 +188,12 @@ class Dellpmax_Gather_Facts(object):
             try:
                 getattr(tmp_data, 'success')
             except AttributeError:
-                # We are on Unisphere 9.x or above. As they dont have an attribute success
+                # We are on Unisphere 9.x or above. As they don't have an
+                # attribute success
                 results[i] = tmp_data
             else:
-                # We are on Unisphere 8.x. They present a sub key with a list of results.. Which is always 1 item in the list
+                # We are on Unisphere 8.x. They present a sub key with a
+                # list of results.. Which is always 1 item in the list
                 key = [key for key in tmp_data.keys() if key != 'success'][0]
                 results[i] = tmp_data[key]
         return results
@@ -204,7 +207,8 @@ class Dellpmax_Gather_Facts(object):
         return facts
 
     def get_subset(self):
-        ''' Gathers a list of objects to gather facts on based on the module inputs '''
+        ''' Gathers a list of objects to gather facts on based on the
+        module inputs '''
         runable_subsets = set()
         exclude_subsets = set()
         for subset in self.gather_subset:
