@@ -82,6 +82,19 @@ EXAMPLES = r'''
         array_id: "{{array_id}}"
         gather_subset: "!volumes"
     - debug: var=dellpmax_facts
+
+    - name: Gather only storage_groups and masking_views facts
+      dellpmax_gather_facts:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        gather_subset:
+          - storage_groups
+          - masking_views
+    - debug: var=dellpmax_facts
 '''
 RETURN = r'''
 dellpmax_facts:
