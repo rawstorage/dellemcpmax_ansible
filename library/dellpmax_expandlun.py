@@ -136,7 +136,7 @@ def main():
             universion=dict(type='int', required=False),
             verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
-            password=dict(type='str', required=True),
+            password=dict(type='str', required=True, no_log=True),
             array_id=dict(type='str', required=True),
             device_id=dict(type='str', required=True),
             newsizegb = dict(type='int', required=True)
