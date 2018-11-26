@@ -109,7 +109,7 @@ def main():
             sgname=dict(type='str', required=True),
             verifycert=dict(type='bool', required=True),
             user=dict(type='str', required=True),
-            password=dict(type='str', required=True),
+            password=dict(type='str', required=True, no_log=True),
             ttl=dict(type='int', required=True),
             snapshotname=dict(type='str', required=True),
             timeinhours=dict(type='bool', required=True),
