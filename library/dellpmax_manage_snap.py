@@ -92,7 +92,7 @@ EXAMPLES = r'''
         password: 'smc'
 
  tasks:
-  - name: Link SnapShot
+  - name: Unlink SnapShot
     dellpmax_manage_snap:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
