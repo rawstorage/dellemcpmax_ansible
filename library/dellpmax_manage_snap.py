@@ -91,20 +91,20 @@ EXAMPLES = r'''
         user: 'smc'
         password: 'smc'
 
-  tasks:
-  - name: Create SnapShot
+ tasks:
+  - name: Link SnapShot
     dellpmax_manage_snap:
         unispherehost: "{{unispherehost}}"
-        port: "{{uniport}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: 'Ansible_test1234'
-        array_id: '000197623456'
-        ttl: 1
-        snapshotname: 'Ansible_SnapShot'
-        timeinhours: True
+        array_id: '000197600123'
+        sgname: 'Ansible_SG'
+        snapshotname: 'Ansible_snap'
+        target_sgname: 'Ansible_link_SG'
+        action: 'unlink'
+
 '''
 RETURN = r'''
 '''
