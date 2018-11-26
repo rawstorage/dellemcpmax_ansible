@@ -19,3 +19,8 @@ Requires PyU4V Please follow installation instructions on the GitHub
 
 https://github.com/ciarams87/PyU4V
 
+Note in environments we've seen some failures where it was required to add environment variable to the playbook, this manifested itself as https errors and error code 503.
+
+    environment:
+        no_proxy: "*"
+
