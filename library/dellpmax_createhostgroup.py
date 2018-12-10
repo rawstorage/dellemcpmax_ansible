@@ -177,6 +177,7 @@ def main():
     if module.params['cluster_name'] not in hostgrouplist and host_exists:
         dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name']
                              ,host_list=module.params['host_list'])
+        changed = True
         module.exit_json(changed=changed)
     else:
         module.fail_json(msg="Cluster Name Already Exists", changed=False)
