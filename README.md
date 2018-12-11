@@ -24,3 +24,6 @@ Note in environments we've seen some failures where it was required to add envir
     environment:
         no_proxy: "*"
 
+To view documentation use the command
+
+ansible-doc -t module dellemcpmax_createsg
