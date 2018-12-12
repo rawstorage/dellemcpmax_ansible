@@ -135,6 +135,7 @@ EXAMPLES = '''
         verifycert: "{{verifycert}}"
         vol_size: 1
         workload: None
+        volumeIdentifier: 'DATA'
 '''
 RETURN = '''
 '''
@@ -142,6 +143,7 @@ from ansible.module_utils.basic import AnsibleModule
 
 
 def main():
+    changed = False
     module = AnsibleModule(
         argument_spec=dict(
             sgname=dict(type='str', required=True),
@@ -175,7 +177,6 @@ def main():
                          password=module.params['password'],
                          u4v_version=module.params['universion'])
     dellemc = conn.provisioning
-    changed = False
     # Compile a list of existing storage groups.
     sglist = dellemc.get_storage_group_list()
     # Check if Storage Group already exists
