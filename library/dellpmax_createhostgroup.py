@@ -16,8 +16,8 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
-short_description: "Create storage group on Dell EMC PowerMax or VMAX All
-Flash"
+short_description: "Create Host Group group on Dell EMC PowerMax or VMAX All
+Flash a host group is equivalent of a cluster containing one or more hosts"
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0. Every effort has been made

@@ -16,7 +16,7 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
-short_description: "Create storage group on Dell EMC PowerMax or VMAX All
+short_description: "Create a new Host on Dell EMC PowerMax or VMAX All
 Flash"
 version_added: "2.8"
 description:
