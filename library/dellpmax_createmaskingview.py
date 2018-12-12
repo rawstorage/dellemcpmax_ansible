@@ -167,17 +167,10 @@ def main():
             host_name=module.params['host_or_cluster'],
             storage_group_name=module.params['sgname'])
         changed = True
-
     else:
         module.fail_json(msg='Masking View Already Exists')
-
     module.exit_json(changed=changed)
 
 
-from ansible.module_utils.basic import *
-from ansible.module_utils.urls import *
-
 if __name__ == '__main__':
     main()
-
-
