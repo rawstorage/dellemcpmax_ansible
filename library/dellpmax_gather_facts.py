@@ -1,73 +1,62 @@
 #!/usr/bin/python
-from ansible.module_utils.six.moves.urllib.error import HTTPError
+# Copyright (C) 2018 DellEMC
+# Author(s): Paul Martin <paule.martin@dell.com>
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-import PyU4V
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
-                    'status': ['preview'],
-                    'supported_by': 'VMAX REST API Community '
-                                    'https://community.emc.com/docs/DOC-56447'
-                    }
-DOCUMENTATION = r'''
+ANSIBLE_METADATA = {
+    'metadata_version': '1.1',
+    'status': ['preview'],
+    'supported_by': 'community'
+}
+
+DOCUMENTATION = '''
 ---
+author:
+  - "PCorey Wanless (@coreywan)"
+short_description: "Module to gather facts about PowerMAX array."
+version_added: "2.8"
+description:
+  - "This module has been tested against UNI 9.0. Every effort has been made
+  to verify the scripts run with valid input. These modules are a tech preview"
 module: dellpmax_gather_facts
-
-Author: Corey Wanless @coreywan
-
-software versions=ansible 2.7.1
-                  python version = 2.7.15rc1 (default, Apr 15 2018,
-
-short_description: 
-    Module to gather facts about PowerMAX array.
-
-notes:
-    -  These modules are a tech preview.
-    Additional error handling will be added at a later
-    date, base functionality only right now.
-
-
-
-Requirements:
-    - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
-    also needs to be installed from pip or PyPi
-
-
-
-playbook options:
-    unispherehost:
-        description:
-            - Full Qualified Domain Name or IP address of Unisphere for 
-            PowerMax host.
-        required:True
-
-    universion:
-        -description:
-            - Integer, version of unipshere software 
-            https://{HostName|IP}:8443/univmax/restapi/{version}/{resource}
-            90 is the release at time of writing module.
-        -required:True
-    verifycert:
-        description: 
-            -Boolean, securitly check on ssl certificates
-        required:True             
-
-        required: True
-    array_id:
-        description:
-            - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
-        required:True
-    gather_subset:
-        description:
-            - Optional parameter to tell ansible which facts to gather about 
-            the system. Possible values for this argument include hosts, 
-            host_groups, masking_views, port_groups, slo, srp, 
-            storage_groups, volumes can specify a list of values to include 
-            a larger subset.  Values can also be used with an initial 
-            C(M(!)) to specify that a specific subset should not be collected.
-        default: "all"
-        required: false
+short_description: ""
+requirements:
+  - Ansible
+  - "Unisphere for PowerMax version 9.0 or higher."
+  - "VMAX All Flash, VMAX3, or PowerMax storage Array."
+  - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
+options:
+  array_id:
+    description:
+      - "Integer 12 Digit Serial Number of PowerMAX or VMAX array."
+    required: true
+  unispherehost:
+    description:
+      - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
+      host."
+    required: true
+  universion:
+    description:
+      - "Integer, version of unipshere software  e.g. 90"
+    required: true
+  verifycert:
+    description:
+      - "Boolean, security check on ssl certificates"
+    type: bool
+    required: true
+  gather_subset:
+    - description:
+      - "Optional parameter to tell ansible which facts to gather about the
+      system. Possible values for this argument include hosts, host_groups,
+      masking_views, port_groups, slo, srp, storage_groups, volumes can
+      specify a list of values to include a larger subset. Values can also
+      be used with an initial C(M(!)) to specify that a specific subset 
+      should not be collected.
+    default: "all"
+    required: false
 '''
 
 EXAMPLES = r'''
@@ -112,6 +101,8 @@ dellpmax_facts:
             "volumes": {...}
     }'
 '''
+from ansible.module_utils.basic import AnsibleModule
+
 
 class Dellpmax_Gather_Facts(object):
     def __init__(self,module):

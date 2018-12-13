@@ -60,7 +60,7 @@ options:
     required: true
   verifycert:
     description:
-      - "Boolean, securitly check on ssl certificates"
+      - "Boolean, security check on ssl certificates"
     type: bool
     required: true
   vol_size:
@@ -124,7 +124,6 @@ from ansible.module_utils.basic import AnsibleModule
 
 def main():
     changed = False
-    # print (changed)
     module = AnsibleModule(
         argument_spec=dict(
             sgname=dict(type='str', required=True),
@@ -164,7 +163,7 @@ def main():
     dellemc = conn.provisioning
     changed = False
 
-    # Compile a list of existing stroage groups.
+    # Compile a list of existing storage groups.
 
     sglist = dellemc.get_storage_group_list()
 
