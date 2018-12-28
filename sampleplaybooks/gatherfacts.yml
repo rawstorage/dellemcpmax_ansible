@@ -1,0 +1,20 @@
+- name: Provision Storage For DB Cluster
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.123.1'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        array_id: '000197600156'
+  tasks:
+  - name: Gather all facts
+    dellpmax_gather_facts:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+  - debug: var=dellpmax_facts["hosts"]

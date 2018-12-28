@@ -1,23 +1,20 @@
-- name: Link SnapVX SnapShot of existing SG, to another SG.
+- name: manipulate state of SRDF for a storage group
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '192.168.156.63'
+        unispherehost: '192.168.123.1'
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
 
- tasks:
-  - name: Link SnapShot
-    dellpmax_manage_snap:
+  tasks:
+  - name: Split SRDF
+    dellpmax_deleteportgroup:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
         array_id: '000197600156'
-        sgname: 'Ansible_SG'
-        snapshotname: 'Ansible_SnapShot_1'
-        target_sgname: 'Ansible_link_SG'
-        action: 'link' # unlink and relink are also valid options
+        portgroup_id: "Ansible_PG"

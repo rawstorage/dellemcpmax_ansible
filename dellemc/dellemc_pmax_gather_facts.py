@@ -1,107 +1,97 @@
 #!/usr/bin/python
-from ansible.module_utils.six.moves.urllib.error import HTTPError
+# Copyright (C) 2018 DellEMC
+# Author(s): Paul Martin <paule.martin@dell.com>
+# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
+from __future__ import absolute_import, division, print_function
 __metaclass__ = type
-import PyU4V
 
-ANSIBLE_METADATA = {'metadata_version': '1.0',
-                    'status': ['preview'],
-                    'supported_by': 'VMAX REST API Community '
-                                    'https://community.emc.com/docs/DOC-56447'
-                    }
-DOCUMENTATION = r'''
+ANSIBLE_METADATA = {
+    'metadata_version': '1.1',
+    'status': ['preview'],
+    'supported_by': 'community'
+}
+
+DOCUMENTATION = '''
 ---
-module: dellpmax_gather_facts
-
-Author: Corey Wanless @coreywan
-
-software versions=ansible 2.7.1
-                  python version = 2.7.15rc1 (default, Apr 15 2018,
-
-short_description: 
-    Module to gather facts about PowerMAX array.
-
-notes:
-    -  These modules are a tech preview.
-    Additional error handling will be added at a later
-    date, base functionality only right now.
-
-
-
-Requirements:
-    - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
-    VMAX All Flash, VMAX3, or PowerMAX storage Array. Python module PyU4V 
-    also needs to be installed from pip or PyPi
-
-
-
-playbook options:
-    unispherehost:
-        description:
-            - Full Qualified Domain Name or IP address of Unisphere for 
-            PowerMax host.
-        required:True
-
-    universion:
-        -description:
-            - Integer, version of unipshere software 
-            https://{HostName|IP}:8443/univmax/restapi/{version}/{resource}
-            90 is the release at time of writing module.
-        -required:True
-    verifycert:
-        description: 
-            -Boolean, securitly check on ssl certificates
-        required:True             
-
-        required: True
-    array_id:
-        description:
-            - Integer 12 Digit Serial Number of PowerMAX or VMAX array.
-        required:True
-    gather_subset:
-        description:
-            - Optional parameter to tell ansible which facts to gather about 
-            the system. Possible values for this argument include hosts, 
-            host_groups, masking_views, port_groups, slo, srp, 
-            storage_groups, volumes can specify a list of values to include 
-            a larger subset.  Values can also be used with an initial 
-            C(M(!)) to specify that a specific subset should not be collected.
-        default: "all"
-        required: false
+author:
+  - "Corey Wanless (@coreywan)"
+short_description: "Module to gather facts about PowerMAX array."
+version_added: "2.8"
+description:
+  - "This module has been tested against UNI 9.0. Every effort has been made
+  to verify the scripts run with valid input. These modules are a tech preview"
+module: dellemc_pmax_gather_facts
+short_description: ""
+requirements:
+  - Ansible
+  - "Unisphere for PowerMax version 9.0 or higher."
+  - "VMAX All Flash, VMAX3, or PowerMax storage Array."
+  - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
+options:
+  array_id:
+    description:
+      - "Integer 12 Digit Serial Number of PowerMAX or VMAX array."
+    required: true
+  unispherehost:
+    description:
+      - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
+      host."
+    required: true
+  universion:
+    description:
+      - "Integer, version of unipshere software  e.g. 90"
+    required: true
+  verifycert:
+    description:
+      - "Boolean, security check on ssl certificates"
+    type: bool
+    required: true
+  gather_subset:
+    - description:
+      - "Optional parameter to tell ansible which facts to gather about the
+      system. Possible values for this argument include hosts, host_groups,
+      masking_views, port_groups, slo, srp, storage_groups, volumes can
+      specify a list of values to include a larger subset. Values can also
+      be used with an initial C(M(!)) to specify that a specific subset 
+      should not be collected.
+    default: "all"
+    required: false
 '''
 
-EXAMPLES = r'''
-    - name: Gather all facts except for the volumes
-      dellpmax_gather_facts:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        gather_subset: "!volumes"
-    - debug: var=dellpmax_facts
+EXAMPLES = '''
+---
+- name: "Gather all facts except for the volumes"
+  dellemc_pmax_gather_facts:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    gather_subset: "!volumes"
+- debug: var=dellemc_pmax_facts
 
-    - name: Gather only storage_groups and masking_views facts
-      dellpmax_gather_facts:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        gather_subset:
-          - storage_groups
-          - masking_views
-    - debug: var=dellpmax_facts
+- name: "Gather only storage_groups and masking_views facts"
+  dellemc_pmax_gather_facts:
+    unispherehost: "{{unispherehost}}"
+    universion: "{{universion}}"
+    verifycert: "{{verifycert}}"
+    user: "{{user}}"
+    password: "{{password}}"
+    array_id: "{{array_id}}"
+    gather_subset:
+      - storage_groups
+      - masking_views
+- debug: var=dellemc_pmax_facts
 '''
 RETURN = r'''
-dellpmax_facts:
+dellemc_pmax_facts:
     description: Returns various information about PowerMAX Array
     returned: always
     type: dict
     sample: '{
-        "dellpmax_facts": {
+        "dellemc_pmax_facts": {
             "hosts": {...},
             "host_groups": {...},
             "masking_views": {...},
@@ -112,18 +102,13 @@ dellpmax_facts:
             "volumes": {...}
     }'
 '''
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 class Dellpmax_Gather_Facts(object):
     def __init__(self,module):
         self.module = module
-        self.conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'],
-                                  port=8443,
-                         array_id=module.params['array_id'],
-                         verify=module.params['verifycert'],
-                         username=module.params['user'],
-                         password=module.params['password'],
-                         u4v_version=module.params['universion'],
-                         )
+        self.conn = pmaxapi(module)
         self.dellemc = self.conn.provisioning
         self.facts = {}
         self.gather_subset = module.params['gather_subset']
@@ -234,27 +219,19 @@ class Dellpmax_Gather_Facts(object):
         return runable_subsets
 
 def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            unispherehost=dict(required=True),
-            universion=dict(type='int', required=False),
-            verifycert=dict(type='bool', required=True),
-            user=dict(type='str', required=True),
-            password=dict(type='str', required=True, no_log=True),
-            array_id=dict(type='str', required=True),
+    argument_spec = dellemc_pmax_argument_spec()
+    argument_spec.update(dict(
             gather_subset=dict(default=['all'], type='list'),
-        ),
-        supports_check_mode=True,
+        )
     )
-
+    module = AnsibleModule(argument_spec=argument_spec,
+        supports_check_mode=True)
     ### Get the Subset of objects to collect
     d = Dellpmax_Gather_Facts(module)
     facts = d.get_data()
     result = {'state': 'info', 'changed': False}
-    module.exit_json(ansible_facts={'dellpmax_facts': facts}, **result)
+    module.exit_json(ansible_facts={'dellemc_pmax_facts': facts}, **result)
 
-from ansible.module_utils.basic import *
-from ansible.module_utils.urls import *
 
 if __name__ == '__main__':
     main()

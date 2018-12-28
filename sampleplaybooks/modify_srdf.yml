@@ -1,23 +1,22 @@
-- name: Create SnapVX SnapShot of existing Storage Group
+- name: manipulate state of SRDF for a storage group
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '192.168.156.63'
+        unispherehost: '192.168.123.1'
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
 
   tasks:
-  - name: Create SnapShot
-    dellpmax_createsnapshot:
+  - name: Split SRDF
+    dellpmax_manage_srdf:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        sgname: 'Ansible_Rob'
         array_id: '000197600156'
-        ttl: 8
-        snapshotname: 'Ansible_Rob_SnapShot_1'
-        timeinhours: True
+        sgname: 'Ansible_SG'
+        action: 'Suspend'
+
