@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright (C) 2018 DellEMC
+# Copyright: (C) 2018, DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -21,7 +21,7 @@ Flash"
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0. Every effort has been made
-  to verify the scripts run with valid input. These modules are a tech preview"
+  to verify the scripts run with valid input. These modules are a tech preview."
 module: dellemc_pmax_createsg
 options:
   array_id:
@@ -36,18 +36,18 @@ options:
       - CYL
     description:
       - "String value, default is set to GB"
-    required: false
+    default: GB
   num_vols:
     description:
       - "integer value for the number of volumes. Minimum is 1, module will
       fail if less than one volume is specified or value is 0. If volumes are
       required of different sizes, additional tasks should be added to
-      playbooks to use dellemc_pmax_addvolume module"
+      playbooks to use M(dellemc_pmax_addvolume) module."
     required: true
   sgname:
     description:
       - "Storage Group name 32 Characters no special characters other than
-      underscore"
+      underscore."
     required: true
   slo:
     description:
@@ -59,8 +59,9 @@ options:
     description:
       - "Storage Resource Pool Name, Default is set to SRP_1, if your system
       has mainframe or multiple pools you can set this to a different value to
-      match your environment"
+      match your environment."
     required: false
+    type: str
   unispherehost:
     description:
       - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
@@ -138,48 +139,58 @@ EXAMPLES = '''
         volumeIdentifier: 'REDO'
 '''
 RETURN = '''
+dellemc_pmax_createsg:
+    description: Information about storage group created
+    returned: success
+    type: dict
+    sample: '{
+        "storagegroup_detail": {
+            "VPSaved": "100.0%",
+            "base_slo_name": "Diamond",
+            "cap_gb": 1.0,
+            "compression": true,
+            "device_emulation": "FBA",
+            "num_of_child_sgs": 0,
+            "num_of_masking_views": 0,
+            "num_of_parent_sgs": 0,
+            "num_of_snapshots": 0,
+            "num_of_vols": 1,
+            "service_level": "Diamond",
+            "slo": "Diamond",
+            "slo_compliance": "STABLE",
+            "srp": "SRP_1",
+            "storageGroupId": "Ansible_SG",
+            "type": "Standalone",
+            "unprotected": true,
+            "vp_saved_percent": 100.0
+            }
+        }'
 '''
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
 def main():
     changed = False
-    module = AnsibleModule(
-        argument_spec=dict(
-            sgname=dict(type='str', required=True),
-            unispherehost=dict(required=True),
-            universion=dict(type='int', required=False),
-            verifycert=dict(type='bool', required=True),
-            user=dict(type='str', required=True),
-            password=dict(type='str', required=True, no_log=True),
-            array_id=dict(type='str', required=True),
-            srp_id=dict(type='str', required=False),
-            slo=dict(type='str', required=False),
-            workload=dict(type='str', required=False),
-            num_vols=dict(type='int', required=True),
-            vol_size=dict(type='int', required=True),
-            cap_unit=dict(type='str', required=True, choices=['GB',
-                                                              'TB',
-                                                              'MB', 'CYL']),
-            volumeIdentifier=dict(type='str', required=False)))
-    try:
-        import PyU4V
-    except:
-        module.fail_json(
-            msg='Requirements not met PyU4V is not installed, please install '
-                'via PIP')
-        module.exit_json(changed=changed)
-
-    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
-                         array_id=module.params['array_id'],
-                         verify=module.params['verifycert'],
-                         username=module.params['user'],
-                         password=module.params['password'],
-                         u4v_version=module.params['universion'])
+    argument_spec = dellemc_pmax_argument_spec()
+    argument_spec.update(dict(
+        sgname=dict(type='str', required=True),
+        srp_id=dict(type='str', required=False),
+        slo=dict(type='str', required=False),
+        workload=dict(type='str', required=False),
+        num_vols=dict(type='int', required=True),
+        vol_size=dict(type='int', required=True),
+        cap_unit=dict(type='str', choices=['GB', 'TB', 'MB', 'CYL'],
+                      default='GB'),
+        volumeIdentifier=dict(type='str', required=False),
+    ))
+    module = AnsibleModule(argument_spec=argument_spec)
+    # Setup connection to API and import provisioning modules.
+    conn = pmaxapi(module)
     dellemc = conn.provisioning
     # Compile a list of existing storage groups.
     sglist = dellemc.get_storage_group_list()
-    # Check if Storage Group already exists
+    # Check if Storage Group already exists.
     if module.params['sgname'] not in sglist:
         dellemc.create_storage_group(srp_id='SRP_1',
                                      sg_id=module.params['sgname'],
@@ -193,7 +204,9 @@ def main():
         changed = True
     else:
         module.fail_json(msg='Storage Group Already Exists')
-    module.exit_json(changed=changed)
+    facts = dellemc.get_storage_group(storage_group_name=module.params['sgname'])
+    result = {'state': 'info', 'changed': changed}
+    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
 
 
 if __name__ == '__main__':

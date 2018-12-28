@@ -4,6 +4,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -16,13 +17,13 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
-short_description: "Create port group on Dell EMC PowerMax or VMAX All
-Flash"
+short_description: "Create Host Group group on Dell EMC PowerMax or VMAX All
+Flash a host group is equivalent of a cluster containing one or more hosts"
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0. Every effort has been made
   to verify the scripts run with valid input. These modules are a tech preview"
-module: dellpmax_createportgroup
+module: dellemc_pmax_createhostgroup
 options:
   array_id:
     description:
@@ -48,14 +49,14 @@ options:
   password:
     description:
       - "password for Unisphere user"
-  portgroup_id:
+  cluster_name:
     description:
       - "32 Character string no special character permitted except for
       underscore"
-  port_list:
+  host_list:
     description:
-      - "List of WWNs of Frontend Ports to be part of Port Group either FA
-      or SE"
+      - "List of Hosts to be added to the Cluster.  Hosts must already exist
+      for task to complete, will error out"
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -64,7 +65,7 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Add volumes to existing storage group"
+- name: "Create a Host Group for Cluster"
   connection: local
   hosts: localhost
   vars:
@@ -75,77 +76,57 @@ EXAMPLES = '''
     universion: "90"
     user: smc
     verifycert: false
+
   tasks:
-      dellpmax_createportgroup:
+  - name: Create Cluster
+    dellemc_pmax_createhostgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
              user: "{{user}}"
              password: "{{password}}"
              array_id: "{{array_id}}"
-             port_list:
-                     -
-                      directorId: "FA-1D"
-                      portId: "4"
-                     -
-                      directorId: "FA-2D"
-                      portId: "4"
-             portgroup_id: "Ansible_PG"
+             host_list:
+              - "AnsibleHost1"
+              - "AnsibleHost2"
+             cluster_name: "AnsibleCluster"
+
 '''
 RETURN = r'''
 '''
 from ansible.module_utils.basic import AnsibleModule
-
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 def main():
     changed = False
-    # print (changed)
-    module = AnsibleModule(
-        argument_spec=dict(
-            unispherehost=dict(required=True),
-            universion=dict(type='int', required=False),
-            verifycert=dict(type='bool', required=True),
-            user=dict(type='str', required=True),
-            password=dict(type='str', required=True, no_log=True),
-            array_id=dict(type='str', required=True),
-            portgroup_id=dict(type='str', required=True),
-            port_list=dict(type='list', required=True),
-
+    argument_spec = dellemc_pmax_argument_spec()
+    argument_spec.update(dict(
+            cluster_name=dict(type='str', required=True),
+            host_list=dict(type='list', required=True),
         )
     )
-    # Make REST call to Unisphere Server and execute create Host
-    try:
-        import PyU4V
-    except:
-        module.fail_json(
-            msg='Requirements not met PyU4V is not installed, please install '
-                'via PIP')
-        module.exit_json(changed=changed)
-
-    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
-                         array_id=module.params['array_id'],
-                         verify=module.params['verifycert'],
-                         username=module.params['user'],
-                         password=module.params['password'],
-                         u4v_version=module.params['universion'])
-
-    # Setting connection shortcut to Provisioning modules to simplify code
-
+    module = AnsibleModule(argument_spec=argument_spec)
+    # Setup connection to API and import provisioning modules.
+    conn = pmaxapi(module)
     dellemc = conn.provisioning
-
-    changed = False
-
-    pglist = dellemc.get_portgroup_list()
-
-    if module.params['portgroup_id'] in pglist:
-        module.fail_json(msg='Portgroup already exists, failing task')
-
-    else:
-        dellemc.create_multiport_portgroup(portgroup_id=module.params['portgroup_id'],
-                                           ports=module.params['port_list'])
+    # Check for each host in the host list that it exists, otherwise fail
+    # module.
+    configuredhostlist = dellemc.get_host_list()
+    hostgrouplist = dellemc.get_hostgroup_list()
+    host_exists = True
+    if module.params['cluster_name'] not in hostgrouplist:
+        for host in module.params["host_list"]:
+            if host not in configuredhostlist:
+                module.fail_json(msg='Host %s does not exist, failing task' % (
+                    host), changed=changed)
+                host_exists = False
+    if module.params['cluster_name'] not in hostgrouplist and host_exists:
+        dellemc.create_hostgroup(hostgroup_id=module.params['cluster_name'],
+                                 host_list=module.params['host_list'])
         changed = True
-
-    module.exit_json(changed=changed)
+        module.exit_json(changed=changed)
+    else:
+        module.fail_json(msg="Cluster Name Already Exists", changed=False)
 
 
 if __name__ == '__main__':

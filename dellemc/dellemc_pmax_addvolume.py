@@ -22,7 +22,7 @@ version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0. Every effort has been made
   to verify the scripts run with valid input. These modules are a tech preview"
-module: dellpmax_addvolume
+module: dellemc_pmax_addvolume
 options:
   array_id:
     description:
@@ -36,18 +36,18 @@ options:
       - CYL
     description:
       - "String value, default is set to GB"
-    required: false
+    default: GB
   num_vols:
     description:
       - "integer value for the number of volumes. Minimum is 1, module will
       fail if less than one volume is specified or value is 0. If volumes are
-      required of different sizes, addional tasks should be added to playbooks
-      to use dellpmax_addvolume module"
+      required of different sizes, additional tasks should be added to
+      playbooks to use M(dellemc_pmax_addvolume) module."
     required: true
   sgname:
     description:
-      - "Existing Storage Group name 32 Characters no special characters other
-      than underscore."
+      - "Storage Group name 32 Characters no special characters other than
+      underscore."
     required: true
   unispherehost:
     description:
@@ -66,7 +66,7 @@ options:
   vol_size:
     description:
       - "Integer value for the size of volumes.  All volumes will be created
-      with same size.  Use dellpmax_addvol to add additional volumes if you
+      with same size.  Use dellemc_pmax_addvol to add additional volumes if you
       require different sized volumes once storage group is created."
     required: true
   volumeIdentifier:
@@ -104,7 +104,7 @@ EXAMPLES = '''
 
   tasks:
   - name: Add REDO Volumes to Storage Group
-    dellpmax_addvolume:
+    dellemc_pmax_addvolume:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
@@ -116,62 +116,57 @@ EXAMPLES = '''
         vol_size:  2
         cap_unit: 'GB'
         volumeIdentifier: 'REDO'
+  - debug: var=sg_volume_detail
 '''
 RETURN = '''
+dellemc_pmax_createsg:
+    description: Information about storage group created
+    returned: success
+    type: dict
+    sample: '{
+            "sg_volume_detail": {
+        "new_volumes": [
+            "00134"
+        ],
+        "storagegroup_name": "Ansible_SG"
+    }
+}
+
 '''
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
 def main():
     changed = False
-    module = AnsibleModule(
-        argument_spec=dict(
-            sgname=dict(type='str', required=True),
-            unispherehost=dict(required=True),
-            universion=dict(type='int', required=False),
-            verifycert=dict(type='bool', required=True),
-            user=dict(type='str', required=True),
-            password=dict(type='str', required=True, no_log=True),
-            array_id=dict(type='str', required=True),
-            num_vols=dict(type='int', required=True),
-            vol_size=dict(type='int', required=True),
-            cap_unit=dict(type='str', required=True, choices=['GB',
-                                                              'TB',
-                                                              'MB', 'CYL']),
-            volumeIdentifier=dict(type='str', required=True)
-        )
+    argument_spec = dellemc_pmax_argument_spec()
+    argument_spec.update(dict(
+        sgname=dict(type='str', required=True),
+        num_vols=dict(type='int', required=True),
+        vol_size=dict(type='int', required=True),
+        cap_unit=dict(type='str', default='GB', choices=['GB',
+                                                         'TB',
+                                                         'MB', 'CYL']),
+        volumeIdentifier=dict(type='str', required=True)
     )
-    try:
-        import PyU4V
-    except:
-        module.fail_json(
-            msg='Requirements not met PyU4V is not installed, please install '
-                'via PIP')
-        module.exit_json(changed=changed)
-
-    # Crete Connection to Unisphere Server to Make REST calls
-
-    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
-                         array_id=module.params['array_id'],
-                         verify=module.params['verifycert'],
-                         username=module.params['user'],
-                         password=module.params['password'],
-                         u4v_version=module.params['universion'])
-
+    )
+    # Create Connection to Unisphere Server to Make REST calls
     # Setting connection shortcut to Provisioning modules to simplify code
-
+    module = AnsibleModule(argument_spec=argument_spec)
+    conn = pmaxapi(module)
     dellemc = conn.provisioning
-    changed = False
-
     # Compile a list of existing storage groups.
-
     sglist = dellemc.get_storage_group_list()
-
-    # Check if Storage Group already exists
-
+    # Check if Storage Group already exists, if storage group does not exist
+    # module will fail.
     if module.params['sgname'] not in sglist:
-        module.fail_json(msg='Storage group does not Exist, Failing Task')
+        module.fail_json(msg='Storage group does not Exist, Failing Task',
+                         changed=changed)
     else:
+        # If storage group exists module can proceed
+        # Build a list of the existing volumes in the storage group
+        sgvols_before = dellemc.get_volume_list(filters={
+            'storageGroupId': module.params['sgname']})
         dellemc.add_new_vol_to_storagegroup(sg_id=module.params['sgname'],
                                             num_vols=module.params['num_vols'],
                                             cap_unit=module.params['cap_unit'],
@@ -179,8 +174,17 @@ def main():
                                             vol_name=module.params[
                                                 'volumeIdentifier'])
         changed = True
-    module.exit_json(changed=changed)
-
+        # Build a list of volumes in storage group after being modified
+        sgvols_after = dellemc.get_volume_list(filters={
+            'storageGroupId': module.params['sgname']})
+        newvols = (list(set(sgvols_after) - set(sgvols_before)))
+        facts = ({'storagegroup_name': module.params[
+            'sgname'],
+                  'new_volumes': newvols
+                  })
+        result = {'state': 'info', 'changed': changed}
+        module.exit_json(ansible_facts={'sg_volume_detail': facts},
+                         **result)
 
 if __name__ == '__main__':
     main()

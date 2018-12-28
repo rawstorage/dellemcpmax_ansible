@@ -64,18 +64,18 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Add volumes to existing storage group"
+- name: "Create a New Port Group"
   connection: local
   hosts: localhost
   vars:
     array_id: 000197600156
     password: smc
-    sgname: Ansible_SG
     unispherehost: "192.168.1.123"
     universion: "90"
     user: smc
     verifycert: false
   tasks:
+    - name: "Create New Port Group and add ports"    
       dellemc_pmax_createportgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
@@ -95,48 +95,22 @@ EXAMPLES = '''
 RETURN = r'''
 '''
 from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
 def main():
     changed = False
-    # print (changed)
-    module = AnsibleModule(
-        argument_spec=dict(
-            unispherehost=dict(required=True),
-            universion=dict(type='int', required=False),
-            verifycert=dict(type='bool', required=True),
-            user=dict(type='str', required=True),
-            password=dict(type='str', required=True, no_log=True),
-            array_id=dict(type='str', required=True),
+    argument_spec = dellemc_pmax_argument_spec()
+    argument_spec.update(dict(
             portgroup_id=dict(type='str', required=True),
             port_list=dict(type='list', required=True),
-
         )
     )
-    # Make REST call to Unisphere Server and execute create Host
-    try:
-        import PyU4V
-    except:
-        module.fail_json(
-            msg='Requirements not met PyU4V is not installed, please install '
-                'via PIP')
-        module.exit_json(changed=changed)
-
-    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
-                         array_id=module.params['array_id'],
-                         verify=module.params['verifycert'],
-                         username=module.params['user'],
-                         password=module.params['password'],
-                         u4v_version=module.params['universion'])
-
-    # Setting connection shortcut to Provisioning modules to simplify code
-
+    module = AnsibleModule(argument_spec=argument_spec)
+    # Setup connection to API and import provisioning modules.
+    conn = pmaxapi(module)
     dellemc = conn.provisioning
-
-    changed = False
-
     pglist = dellemc.get_portgroup_list()
-
     if module.params['portgroup_id'] in pglist:
         module.fail_json(msg='Portgroup already exists, failing task')
 
@@ -146,7 +120,5 @@ def main():
         changed = True
 
     module.exit_json(changed=changed)
-
-
 if __name__ == '__main__':
     main()

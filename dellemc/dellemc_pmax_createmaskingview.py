@@ -16,13 +16,13 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
-short_description: "Create a new Host on Dell EMC PowerMax or VMAX All
+short_description: "Create a new masking view on Dell EMC PowerMax or VMAX All
 Flash"
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0. Every effort has been made
   to verify the scripts run with valid input. These modules are a tech preview"
-module: dellpmax_createhost
+module: dellemc_pmax_createmaskingview
 options:
   array_id:
     description:
@@ -48,13 +48,22 @@ options:
   password:
     description:
       - "password for Unisphere user"
-  host_id:
+  portgroup_id:
     description:
       - "32 Character string no special character permitted except for
       underscore"
-  initiator_list:
+  sgname:
     description:
-      - "List of WWNs or iQN."
+      - "32 Character string representing storage group name"
+  host_or_cluster:
+    description:
+      - "Host or Cluster Name, Unique 32 Character string representing
+      masking"
+  maskingview_name:
+    description:
+      - "32 Character string representing masking view name, name must not
+      already be in use"
+
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -63,7 +72,7 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Add volumes to existing storage group"
+- name: "Create a Masking View from existing components"
   connection: local
   hosts: localhost
   vars:
@@ -76,73 +85,50 @@ EXAMPLES = '''
     verifycert: false
 
   tasks:
-  - name: Create Host2
-    dellpmax_createhost:
+    - name: "Create Masking View for Host Access to storage group volumes"
+      dellemc_pmax_createmaskingview:
+        array_id: "{{array_id}}"
+        password: "{{password}}"
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
         user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        initiator_list:
-        - 10000000c98ffea2
-        - 10000000c98ffeb3
-        host_id: "AnsibleHost2"
-
+        verifycert: "{{verifycert}}"
+        sgname: "{{sgname}}"
+        portgroup_id: "Ansible_PG"
+        host_or_cluster : "AnsibleCluster"
+        maskingview_name: "Ansible_MV"
 '''
 RETURN = r'''
 '''
 from ansible.module_utils.basic import AnsibleModule
-
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 def main():
     changed = False
-    module = AnsibleModule(
-        argument_spec=dict(
-            unispherehost=dict(required=True),
-            universion=dict(type='int', required=False),
-            verifycert=dict(type='bool', required=True),
-            user=dict(type='str', required=True),
-            password=dict(type='str', required=True, no_log=True),
-            array_id=dict(type='str', required=True),
-            host_id=dict(type='str', required=True),
-            initiator_list=dict(type='list', required=True)
+    argument_spec = dellemc_pmax_argument_spec()
+    argument_spec.update(dict(
+            sgname=dict(type='str', required=True),
+            host_or_cluster=dict(type='str', required=True),
+            portgroup_id=dict(type='str', required=True),
+            maskingview_name=dict(type='str', required=True)
         )
     )
-    try:
-        import PyU4V
-    except:
-        module.fail_json(
-            msg='Requirements not met PyU4V is not installed, please install'
-                'via PIP')
-        module.exit_json(changed=changed)
-
-    # Crete Connection to Unisphere Server to Make REST calls
-
-    conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'], port=8443,
-                         array_id=module.params['array_id'],
-                         verify=module.params['verifycert'],
-                         username=module.params['user'],
-                         password=module.params['password'],
-                         u4v_version=module.params['universion'])
-
-    # Setting connection shortcut to Provisioning modules to simplify code
-
+    module = AnsibleModule(argument_spec=argument_spec)
+    # Create Connection to Unisphere Server to Make REST calls
+    conn = pmaxapi(module)
     dellemc = conn.provisioning
-
-    # Compile a list of existing hosts.
-
-    hostlist = dellemc.get_host_list()
-
-    # Check if Host Name already exists
-
-    if module.params['host_id'] not in hostlist:
-        dellemc.create_host(host_name=module.params['host_id'],
-                            initiator_list=module.params['initiator_list'])
+    # Make REST call to Unisphere Server and execute create masking view
+    mvlist = dellemc.get_masking_view_list()
+    # Check if Storage Group already exists
+    if module.params['maskingview_name'] not in mvlist:
+        dellemc.create_masking_view_existing_components(
+            port_group_name=module.params['portgroup_id'],
+            masking_view_name=module.params['maskingview_name'],
+            host_name=module.params['host_or_cluster'],
+            storage_group_name=module.params['sgname'])
         changed = True
-
     else:
-        module.fail_json(msg='Host Name already exists, Failing Task')
+        module.fail_json(msg='Masking View Already Exists')
     module.exit_json(changed=changed)
 
 
