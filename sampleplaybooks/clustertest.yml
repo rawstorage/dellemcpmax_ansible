@@ -1,0 +1,24 @@
+- name: Provision Storage For DB Cluster
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.123.1'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        sgname: 'Ansible_SG'
+        array_id: '000197600156'
+  tasks:
+  - name: Create Host Group
+    dellpmax_createhostgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             host_list:
+              - "AnsibleHost1"
+              - "AnsibleHost2"
+             cluster_name: "AnsibleCluster"
