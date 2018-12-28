@@ -7,9 +7,13 @@ requirements:
     
     Installation Instructions
 
-Copy contents of Library Directory to 
+Copy dellemc Directory to 
 
-/usr/lib/python2.7/dist-packages/ansible/modules/storage/dellpmax
+/usr/lib/python2.7/dist-packages/ansible/modules/storage/
+
+copy dellemc.py file in module_utils to 
+
+/usr/lib/python2.7/dist-packages/ansible/module_utils
 
 Playbooks can then be run from any working directory with ansible-playbook commands
 
@@ -24,3 +28,11 @@ Note in environments we've seen some failures where it was required to add envir
     environment:
         no_proxy: "*"
 
+All modules are fully documented with sample task code in and return data, 
+
+To check how each can be consumed and what parameters are required please 
+use ansible documentation commands to inspect:
+
+e.g.
+
+ansible-doc -t module dellemc_pmax_manage_snap
