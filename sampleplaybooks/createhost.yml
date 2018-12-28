@@ -1,4 +1,4 @@
-- name: "Delete Host"
+- name: "Add volumes to existing storage group"
   connection: local
   hosts: localhost
   vars:
@@ -11,12 +11,16 @@
     verifycert: false
 
   tasks:
-  - name: Delete Host2
-    dellemc_pmax_deletehost:
+  - name: Create Host1
+    dellemc_pmax_createhost:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
         array_id: "{{array_id}}"
+        initiator_list:
+        - 10000000c98ffe4a
+        - 10000000c98ffe53
         host_id: "AnsibleHost1"
+

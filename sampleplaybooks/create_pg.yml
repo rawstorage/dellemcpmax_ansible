@@ -1,0 +1,28 @@
+- name: "Create a New Port Group"
+  connection: local
+  hosts: localhost
+  vars:
+    array_id: 000197600156
+    password: smc
+    unispherehost: "192.168.123.1"
+    universion: "90"
+    user: smc
+    verifycert: false
+  tasks:
+    - name: "Create New Port Group and add ports"
+      dellemc_pmax_createportgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             port_list:
+                     -
+                      directorId: "FA-1D"
+                      portId: "4"
+                     -
+                      directorId: "FA-2D"
+                      portId: "4"
+             portgroup_id: "Ansible_PG"
+

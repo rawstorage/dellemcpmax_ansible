@@ -1,0 +1,29 @@
+- name: Provision Storage For DB Cluster
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.123.1'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        sgname: 'Ansible_SG'
+        array_id: '000197600156'
+  tasks:
+  - name: Create New Storage Group and add data volumes
+    dellemc_pmax_createsg:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        sgname: "{{sgname}}"
+        array_id: "{{array_id}}"
+        srp_id: 'SRP_1'
+        slo: 'Diamond'
+        workload: None
+        num_vols: 1
+        vol_size:  1
+        cap_unit: 'GB'
+        volumeIdentifier: 'DATA'
+  - debug: var=storagegroup_detail

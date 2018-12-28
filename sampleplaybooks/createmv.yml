@@ -1,0 +1,26 @@
+- name: "Create a Masking View from existing components"
+  connection: local
+  hosts: localhost
+  vars:
+    array_id: 000197600156
+    password: smc
+    sgname: Ansible_SG
+    unispherehost: "192.168.123.1"
+    universion: "90"
+    user: smc
+    verifycert: false
+
+  tasks:
+    - name: "Create Masking View for Host Access to storage group volumes"
+      dellemc_pmax_createmaskingview:
+        array_id: "{{array_id}}"
+        password: "{{password}}"
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        user: "{{user}}"
+        verifycert: "{{verifycert}}"
+        sgname: "{{sgname}}"
+        portgroup_id: "Ansible_PG"
+        host_or_cluster : "AnsibleCluster"
+        maskingview_name: "MyMaskingView"
+

@@ -1,20 +1,23 @@
-- name: Provision Storage For DB Cluster
-  hosts: localhost
+- name: "Add volumes to existing storage group"
   connection: local
+  hosts: localhost
   vars:
-        unispherehost: '192.168.123.1'
-        universion: "90"
-        verifycert: False
-        user: 'smc'
-        password: 'smc'
-        array_id: '000197600156'
+    array_id: 000197600156
+    password: smc
+    sgname: Ansible_SG
+    unispherehost: "192.168.123.1"
+    universion: "90"
+    user: smc
+    verifycert: false
+
   tasks:
-  - name: Gather all facts
-    dellpmax_gather_facts:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-  - debug: var=dellpmax_facts["hosts"]
+  - name: "Gather only storage_groups and masking_views facts"
+    dellemc_pmax_gather_facts:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      gather_subset:
+      - storage_groups

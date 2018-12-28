@@ -1,4 +1,4 @@
-- name: "Delete Host"
+- name: "Delete existing Storage Group"
   connection: local
   hosts: localhost
   vars:
@@ -11,12 +11,12 @@
     verifycert: false
 
   tasks:
-  - name: Delete Host2
-    dellemc_pmax_deletehost:
+    - name: "Delete Storage Group"
+      dellemc_pmax_delete_sg:
+        array_id: "{{array_id}}"
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
-        array_id: "{{array_id}}"
-        host_id: "AnsibleHost1"
+        verifycert: "{{verifycert}}"
+        sgname: "Ansible_SG"

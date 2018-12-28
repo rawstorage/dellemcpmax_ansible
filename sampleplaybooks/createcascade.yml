@@ -1,4 +1,4 @@
-- name: "Delete Host"
+- name: "Provision Storage For DB Cluster"
   connection: local
   hosts: localhost
   vars:
@@ -11,12 +11,14 @@
     verifycert: false
 
   tasks:
-  - name: Delete Host2
-    dellemc_pmax_deletehost:
+    - name: "Base Values for Task Add module Specific paramters"
+      dellemc_pmax_addcascadedsg:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
+        array_id: "{{array_id}}"
         user: "{{user}}"
         password: "{{password}}"
-        array_id: "{{array_id}}"
-        host_id: "AnsibleHost1"
+        verifycert: "{{verifycert}}"
+        parent_sg: "Ansible_Parent_SG"
+        child_sg: "Ansible_SG"
+

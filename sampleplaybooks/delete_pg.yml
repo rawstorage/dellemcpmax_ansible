@@ -1,0 +1,22 @@
+- name: Delete Port Group
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.123.1'
+        uniport: 8443
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        array_id: "000197600156"
+  tasks:
+    - name: Delete Port Group
+      dellpmax_deleteportgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG"
+

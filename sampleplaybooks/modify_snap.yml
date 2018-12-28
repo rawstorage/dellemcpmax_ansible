@@ -7,16 +7,18 @@
         verifycert: False
         user: 'smc'
         password: 'smc'
-        array_id: "000197600156"
+
 
   tasks:
-    - name: "Base Values for Task Add module Specific paramters"
-      dellemc_pmax_manage_srdf:
+    - name: "link snapshot to target sg"
+      dellemc_pmax_manage_snap:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
-        array_id: "{{array_id}}"
+        array_id: "000197600156"
         user: "{{user}}"
         password: "{{password}}"
         verifycert: "{{verifycert}}"
         sgname: "Ansible_SG"
-        action: "Suspend"
+        snapshotname: "Ansible_Snap"
+        target_sgname: "Ansible_lnk_SG"
+        action: "link"
