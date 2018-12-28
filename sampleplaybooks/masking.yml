@@ -1,0 +1,25 @@
+- name: manipulate state of SRDF for a storage group
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.123.1'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        array_id: '000197600156'
+
+  tasks:
+    - name: Create Masking View for Host Access
+      dellpmax_createmaskingview:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             host_or_cluster: "AnsibleCluster"
+             sgname: "Ansible_SG"
+             portgroup_id: "Ansible_PG"
+             maskingview_name: "Ansible_MV"
+
