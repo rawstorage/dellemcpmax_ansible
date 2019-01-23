@@ -127,9 +127,18 @@ def main():
             host_name=module.params['host_or_cluster'],
             storage_group_name=module.params['sgname'])
         changed = True
+        message = "Masking view sucessfully created"
     else:
-        module.fail_json(msg='Masking View Already Exists')
-    module.exit_json(changed=changed)
+        message = "Masking View Already Esists"
+
+    mv_details = dellemc.get_masking_view(module.params['maskingview_name'])
+
+    facts = ({'message': message,
+              'mv_details': mv_details})
+    result = {'state': 'info', 'changed': changed}
+    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+
+
 
 
 if __name__ == '__main__':
