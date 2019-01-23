@@ -132,6 +132,7 @@ from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 def main():
     changed = False
+    message = "No Change"
     argument_spec = dellemc_pmax_argument_spec()
     argument_spec.update(dict(
             device_id=dict(type='str', required=True),
@@ -142,6 +143,7 @@ def main():
     # Setup connection to API and import  modules.
     conn = pmaxapi(module)
     dellemc = conn.provisioning
+
     if dellemc.get_volume(device_id=module.params[
             'device_id'])['cap_gb'] < module.params[
             'newsizegb']:
@@ -150,12 +152,11 @@ def main():
             'device_id'])
         changed = True
     else:
-        module.exit_json(msg="new volume size must be greater "
-                             "than current size", changed=changed)
+        message = "New Volume Size must be larger than Current capacity"
 
     facts = dellemc.get_volume(device_id=module.params[
             'device_id'])
-    result = {'state': 'info', 'changed': changed}
+    result = {'message': message, 'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'vol_detail': facts}, **result)
 
 if __name__ == '__main__':
