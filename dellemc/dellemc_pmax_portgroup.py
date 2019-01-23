@@ -70,12 +70,62 @@ EXAMPLES = '''
   vars:
     array_id: 000197600156
     password: smc
-    unispherehost: "192.168.1.123"
+    unispherehost: "10.60.156.63"
     universion: "90"
     user: smc
     verifycert: false
   tasks:
-    - name: "Create New Port Group and add ports"    
+    - name: "Create New Port Group and add ports"
+      dellemc_pmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG1"
+             array_ports:
+               -  FA-1D:4
+               -  FA-2D:4
+             action: create
+             
+- name: "Add Ports to Existing Port Group"
+  connection: local
+  hosts: localhost
+  vars:
+    array_id: 000197600156
+    password: smc
+    unispherehost: "10.60.156.63"
+    universion: "90"
+    user: smc
+    verifycert: false
+  tasks:
+    - name: "Modfy Port Group by adding ports"
+      dellemc_pmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG1"
+             array_ports:
+               -  FA-1D:6
+               -  FA-2D:6
+             action: add_ports
+
+- name: "Delete a New Port Group"
+  connection: local
+  hosts: localhost
+  vars:
+    array_id: 000197600156
+    password: smc
+    unispherehost: "10.60.156.63"
+    universion: "90"
+    user: smc
+    verifycert: false
+  tasks:
+    - name: "Delete Existing Port Group"
       dellemc_pmax_portgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
@@ -84,9 +134,33 @@ EXAMPLES = '''
              password: "{{password}}"
              array_id: "{{array_id}}"
              portgroup_id: "Ansible_PG"
+             action: delete
+             
+- name: "Remove Ports from Existing Port Group"
+  connection: local
+  hosts: localhost
+  vars:
+    array_id: 000197600156
+    password: smc
+    unispherehost: "10.60.156.63"
+    universion: "90"
+    user: smc
+    verifycert: false
+  tasks:
+    - name: "Modfy Port Group by removing ports"
+      dellemc_pmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG1"
              array_ports:
-               -  FA-1D:5
-               -  FA-2D:5
+               -  FA-1D:6
+               -  FA-2D:6
+             action: remove_ports
+
              
 '''
 RETURN = r'''
