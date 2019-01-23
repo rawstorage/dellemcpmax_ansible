@@ -306,26 +306,30 @@ def delete_sg(apiconnection, module):
 def add_volumes(apiconnection, module):
     dellemc = apiconnection
     changed = False
-    sgvols_before = dellemc.get_volume_list(filters={
-        'storageGroupId': module.params['sgname']})
-    if module.params["luns"]:
-        lunlist = module.params["luns"]
-        if len(lunlist) > 0:
-            for lun in lunlist:
-                dellemc.add_new_vol_to_storagegroup(
-                    sg_id=module.params['sgname'],
-                    cap_unit=lun['cap_unit'],
-                    num_vols=lun['num_vols'],
-                    vol_size=lun['vol_size'],
-                    vol_name=lun['vol_name'])
-        changed = True
+    message = "Check input Parameters, Storage Group not found"
+    sglist = dellemc.get_storage_group_list()
+    newvols = []
+    # Check if storage group exists before making changes
+    if module.params['sgname'] in sglist:
+        sgvols_before = dellemc.get_volume_list(filters={
+            'storageGroupId': module.params['sgname']})
+        if module.params["luns"]:
+            lunlist = module.params["luns"]
+            if len(lunlist) > 0:
+                for lun in lunlist:
+                    dellemc.add_new_vol_to_storagegroup(
+                        sg_id=module.params['sgname'],
+                        cap_unit=lun['cap_unit'],
+                        num_vols=lun['num_vols'],
+                        vol_size=lun['vol_size'],
+                        vol_name=lun['vol_name'])
+            changed = True
+        sgvols_after = dellemc.get_volume_list(filters={
+            'storageGroupId': module.params['sgname']})
+        newvols = (list(set(sgvols_after) - set(sgvols_before)))
 
-    sgvols_after = dellemc.get_volume_list(filters={
-        'storageGroupId': module.params['sgname']})
-    newvols = (list(set(sgvols_after) - set(sgvols_before)))
-
-    facts = ({'storagegroup_name': module.params['sgname'], 'new_volumes':
-        newvols, 'sgdetails': dellemc.get_storage_group(
+    facts = ({'message': message,'storagegroup_name': module.params['sgname'],
+              'new_volumes': newvols, 'sgdetails': dellemc.get_storage_group(
         storage_group_name=module.params['sgname'])})
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
@@ -353,9 +357,10 @@ def remove_volumes(apiconnection, module):
             else:
                 message = "Not All Volumes in the list provided are in " \
                           "storage group"
-        else:
-            changed = False
-            message = "Result will remove all volumes from SG"
+    else:
+        changed = False
+        message = "Result will remove all volumes from SG"
+
     facts = ({'message': message})
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
