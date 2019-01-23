@@ -92,7 +92,7 @@ EXAMPLES = '''
         action: "Suspend"
 '''
 RETURN = '''
-dellemc_pmax_manage_srdf:
+dellemc_pmax_srdf:
     description: Information about storage group created
     returned: success
     type: dict
@@ -164,13 +164,13 @@ def main():
                     'managment')
 
     else:
+        module.exit_json(msg='Specified Storage Group is not SRDF Protected')
 
-        module.fail_json(msg='Specified Storage Group is not currently SRDF '
-                             'Protected')
     rdfstate=rep.get_storagegroup_srdf_details(
         storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
     facts = rdfstate
     result = {'state': 'info', 'changed': changed}
+
     module.exit_json(ansible_facts={'rdfstate': facts}, **result)
 
 

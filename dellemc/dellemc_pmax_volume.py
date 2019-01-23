@@ -68,35 +68,30 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Provision Storage For DB Cluster"
-  connection: local
+- name: Provision Storage For DB Cluster
   hosts: localhost
+  connection: local
   vars:
-    array_id: 000197600156
-    password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.1.123"
-    universion: "90"
-    user: smc
-    verifycert: false
-
+        unispherehost: '192.168.1.1'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        sgname: 'Ansible_empty_SG'
+        array_id: '000197600156'
   tasks:
-    - name: "Create New Storage Group and add data volumes"
-      dellemc_pmax_createsg:
-        array_id: "{{array_id}}"
-        cap_unit: GB
-        num_vols: 1
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        slo: Diamond
-        srp_id: SRP_1
+  - name: Create New Storage Group and add data volumes
+    dellemc_pmax_volume:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
-        user: "{{user}}"
         verifycert: "{{verifycert}}"
-        vol_size: 1
-        workload: None
-        volumeIdentifier: 'REDO'
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        newsizegb: 3
+        device_id: "0013A"
+  - debug: var=vol_detail
+
 '''
 RETURN = '''
 dellemc_pmax_createsg:
@@ -140,7 +135,7 @@ def main():
     argument_spec = dellemc_pmax_argument_spec()
     argument_spec.update(dict(
             device_id=dict(type='str', required=True),
-            newsizegb = dict(type='int', required=True)
+            newsizegb=dict(type='int', required=True)
         )
     )
     module = AnsibleModule(argument_spec=argument_spec)
