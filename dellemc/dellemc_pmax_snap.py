@@ -89,7 +89,7 @@ EXAMPLES = '''
 
   tasks:
     - name: "Link a Snapshot"
-      dellemc_pmax_manage_snap:
+      dellemc_pmax_snap:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         array_id: "{{array_id}}"
@@ -102,7 +102,7 @@ EXAMPLES = '''
         action: "link"
     
     - name: "relink a Snapshot"
-      dellemc_pmax_manage_snap:
+      dellemc_pmax_snap:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         array_id: "{{array_id}}"
@@ -115,7 +115,7 @@ EXAMPLES = '''
         action: "relink"
 
     - name: "unink a Snapshot"
-      dellemc_pmax_manage_snap:
+      dellemc_pmax_snap:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         array_id: "{{array_id}}"
@@ -128,7 +128,7 @@ EXAMPLES = '''
         action: "unlink"    
 '''
 RETURN = '''
-dellemc_pmax_manage_snap:
+dellemc_pmax_snap:
     description: Information about storage group created
     returned: success
     type: dict
@@ -222,7 +222,7 @@ def main():
         changed = True
 
     else:
-        module.fail_json(msg='No Snapshot found with the supplied Parameters')
+        module.exit_json(msg='No Snapshot found with the supplied Parameters')
 
     snapshotdetails=rep.get_snapshot_generation_details(sg_id=module.params[
         'sgname'],snap_name=module.params['snapshotname'],gen_num=0)
