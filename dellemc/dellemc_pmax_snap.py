@@ -61,12 +61,13 @@ options:
       get created automatically by the API."  
   action:
     description:
-      - "Link will link a snapshot to a target storage group, relink is used to
-       refresh a snapshot resetting the data on the target storage group 
-       volumes to that of the initial link. Unlink will remove the 
-       association between the snapshot and the target storage group, 
-       if snapshot time to live value has passed the snapshot will be 
-       deleted after the unlink operation"  
+      - "Valid actions include create, link, relink, unlink. Link will link 
+      a snapshot to a target storage group, relink is used to refresh a
+      snapshot resetting the data on the target storage group volumes to that
+      of the initial link. Unlink will remove the association between the
+      snapshot and the target storage group, if snapshot time to live value
+      has passed the snapshot will be deleted after the unlink operation"
+       
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -75,7 +76,32 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Provision Storage For DB Cluster"
+- name: Create SnapVX SnapShot of existing Storage Group
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.1.123'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+
+  tasks:
+  - name: Create SnapShot
+    dellemc_pmax_create_snapshot:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        sgname: 'Ansible_SG'
+        array_id: '000197600156'
+        ttl: 1
+        snapshotname: 'Ansible_SnapShot_1'
+        timeinhours: True
+  - debug: var=snap_detail
+  
+- name: "Fun with Snapshots"
   connection: local
   hosts: localhost
   vars:
@@ -177,24 +203,33 @@ def main():
             sgname=dict(type='str', required=True),
             snapshotname=dict(type='str', required=True),
             target_sgname=dict(type='str', required=True),
-            action=dict(type='str', choices=['link', 'relink', 'unlink'],
+            action=dict(type='str', choices=['create', 'link', 'relink',
+                                             'unlink'],
                         required=True)
         )
     )
     # Make REST call to Unisphere Server and execute create snapshot/
-
+    snapshotdetails = "unknown"
     module = AnsibleModule(argument_spec=argument_spec)
     # Setup connection to API and import  modules.
     conn = pmaxapi(module)
     # Import provisioning and replication functions
     prov = conn.provisioning
     rep = conn.replication
-
     sglist = prov.get_storage_group_list()
     snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
 
     if module.params['sgname'] in sglist and module.params['snapshotname'] \
             in snaplist:
+        if module.params['action'] == 'create':
+            if module.params['sgname'] in sglist:
+                rep.create_storagegroup_snap(sg_name=module.params['sgname'],
+                                             snap_name=module.params[
+                                                 'snapshotname'],
+                                             ttl=module.params[
+                                                 'ttl'], hours=module.params[
+                        'timeinhours'])
+                changed = True
         if module.params['action'] == 'link':
             rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
                                          snap_name=module.params[
@@ -203,6 +238,7 @@ def main():
                                              'target_sgname'],
                                          link=True, new_name=None, gen_num=0,
                                          async=True)
+            changed = True
         elif module.params['action'] == 'relink':
             rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
                                          snap_name=module.params[
@@ -210,6 +246,7 @@ def main():
                                          target_sg_id=module.params[
                                              'target_sgname'],
                                          relink=True, gen_num=0, async=True)
+            changed = True
         elif module.params['action'] == 'unlink':
             rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
                                          snap_name=module.params[
@@ -219,13 +256,14 @@ def main():
                                          unlink=True, gen_num=0,
                                          async=True)
 
-        changed = True
+            changed = True
+        snapshotdetails = rep.get_snapshot_generation_details(
+            sg_id=module.params[
+                'sgname'], snap_name=module.params['snapshotname'], gen_num=0)
 
     else:
         module.exit_json(msg='No Snapshot found with the supplied Parameters')
 
-    snapshotdetails=rep.get_snapshot_generation_details(sg_id=module.params[
-        'sgname'],snap_name=module.params['snapshotname'],gen_num=0)
     facts = snapshotdetails
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'snapdetail': facts}, **result)

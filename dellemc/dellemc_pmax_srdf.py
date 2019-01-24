@@ -135,20 +135,18 @@ def main():
     argument_spec.update(dict(
             sgname=dict(type='str', required=True),
             action=dict(type='str',choices=['Establish','Suspend','Split',
-                                            'Failover','Failback'],
-                        required=True)
+                                            'Failover','Failback'],required=True)
         )
     )
     # Make REST call to Unisphere Server and execute SRDF control operation
-
     module = AnsibleModule(argument_spec=argument_spec)
+
     # Setup connection to API and import replicaiton functions.
     conn = pmaxapi(module)
-
     rep=conn.replication
-
+    rdf_state = "Unknown"
+    message = "No Changes"
     rdf_sglist = rep.get_storage_group_rep_list(has_srdf=True)
-
     if module.params['sgname'] in rdf_sglist:
         rdfg_list = rep.get_storagegroup_srdfg_list(module.params['sgname'])
         if len(rdfg_list)<=1:
@@ -156,22 +154,19 @@ def main():
             rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
             , action=module.params['action'], rdfg=rdfg)
             changed = True
+            rdf_state = rep.get_storagegroup_srdf_details(
+                storagegroup_id=module.params['sgname'], rdfg_num=rdfg
         else:
-            module.fail_json(changed=changed,
-                msg='Specified Storage Group has mult-site RDF Protection '
-                    'Ansible Module currently supports single Site SRDF '
-                    'please use Unishpere for PowerMax UI for SRDF group '
-                    'managment')
-
+            message = 'Specified Storage Group has mult-site RDF Protection ' \
+                      'Ansible Module currently supports single Site SRDF ' \
+                      'please use Unishpere for PowerMax UI for SRDF group ' \
+                      'managment'
     else:
-        module.exit_json(msg='Specified Storage Group is not SRDF Protected')
+        message = 'Specified Storage Group is not SRDF Protected'
 
-    rdfstate=rep.get_storagegroup_srdf_details(
-        storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
-    facts = rdfstate
-    result = {'state': 'info', 'changed': changed}
-
-    module.exit_json(ansible_facts={'rdfstate': facts}, **result)
+    facts = rdf_state
+    result = ({'state': 'info', 'changed': changed, 'message': message})
+    module.exit_json(ansible_facts={'rdfstate': facts, **result})
 
 
 if __name__ == '__main__':
