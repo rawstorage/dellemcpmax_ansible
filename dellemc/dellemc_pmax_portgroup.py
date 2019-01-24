@@ -285,16 +285,16 @@ def main():
     # Setup connection to API and import provisioning modules.
     conn = pmaxapi(module)
     dellemc = conn.provisioning
-    if module.params.get('action') == 'show':
+    if module.params['action'] == 'show':
         result.update(dellemc.get_portgroup(
-            module.params.get('port_group')))
-    elif module.params.get('action') == 'create':
+            module.params['port_group']))
+    elif module.params['action'] == 'create':
         create_portgroup(apiconnection=dellemc, module=module)
-    elif module.params.get('action') == 'add_ports':
+    elif module.params['action'] == 'add_ports':
         add_port(apiconnection=dellemc, module=module)
-    elif module.params.get('action') == 'remove_ports':
+    elif module.params['action'] == 'remove_ports':
         remove_ports(apiconnection=dellemc, module=module)
-    elif module.params.get('action') == 'delete':
+    elif module.params['action'] == 'delete':
         delete_portgroup(apiconnection=dellemc, module=module)
     else:
         module.fail_json(msg='unsupported action')
