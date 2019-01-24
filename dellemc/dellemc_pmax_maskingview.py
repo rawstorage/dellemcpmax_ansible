@@ -120,7 +120,30 @@ def main():
     # Make REST call to Unisphere Server and execute create masking view
     mvlist = dellemc.get_masking_view_list()
     # Check if Storage Group already exists
-    if module.params['maskingview_name'] not in mvlist:
+    host = ""
+    pg = ""
+    sg = ""
+    existing_sg_mvs = get_masking_views_from_storage_group(
+        storagegroup=module.params['sgname'])
+    valid_mv_components = True
+
+    # Make sure parameters aren't used in a masking view with a different
+    # name.
+    if len existing_sg_mvs > 0:
+        for mv in existing_sg_mvs:
+            existing_mv_details = dellemc.get_masking_view(
+                masking_view_name=mv)
+            if existing_mv_details['hostId']:
+                host=existing_mv_details['hostId']
+            else:
+                host=existing_mv_details['hostGroupId']
+            sg= existing_mv_details['storageGroupId']
+            pg= existing_mv_details['portGroupId']
+        if sg == module.params['sgname'] and pg == module.params['portgroup_id']\
+            and host == module.params['host_or_cluster']:
+            valid_mv_components = False
+
+    if module.params['maskingview_name'] not in mvlist and valid_mv_components:
         dellemc.create_masking_view_existing_components(
             port_group_name=module.params['portgroup_id'],
             masking_view_name=module.params['maskingview_name'],
@@ -128,6 +151,10 @@ def main():
             storage_group_name=module.params['sgname'])
         changed = True
         message = "Masking view sucessfully created"
+    elif valid_mv_components = False:
+        message = "Masking Views should be a unique combination of SG, " \
+                  "Port Group and Host or HostGroup please check input " \
+                  "parameters"
     else:
         message = "Masking View Already Esists"
 
@@ -137,8 +164,6 @@ def main():
               'mv_details': mv_details})
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
-
-
 
 
 if __name__ == '__main__':

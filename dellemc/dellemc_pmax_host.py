@@ -196,6 +196,30 @@ def delete_hostgroup(apiconnection, module):
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'host_detail': facts}, **result)
 
+def modify_hostgroup(apiconnection, module, action):
+    changed = False
+    # Create a New Host
+    conn = apiconnection
+    dellemc = conn.provisioning
+    # Compile a list of existing hosts.
+    hostgrouplist = dellemc.get_hostgroup_list()
+    # Check if Host Name already exists.
+    if module.params['hostgroup_id'] in hostgrouplist:
+        mvlist = dellemc.get_masking_views_by_host(\
+                initiatorgroup_name=module.params['host_id'])
+        if len(mvlist) < 1:
+            dellemc.delete_hostgroup(hostgroup_id=module.params['hostgroup_id'])
+            changed = True
+            message = "HostGroup Deleted"
+        else:
+            message = module.params['host_id'] + " host is part of a Masking " \
+                                                "view"
+    else:
+        message = "Specified hostgroup does not exist"
+    facts = ({'message': message})
+    result = {'state': 'info', 'changed': changed}
+    module.exit_json(ansible_facts={'host_detail': facts}, **result)
+
 
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
@@ -211,8 +235,8 @@ def main():
                                                         'delete_host',
                                                         'create_hostgroup',
                                                         'delete_hostgroup',
-                                                        'add_hostgroup_host',
-                                                        'remove_hostgroup_host'
+                                                        'add_host_to_hostgroup',
+                                                        'remove_host_from_hostgroup',
                                                         'add_initiator',
                                                         'remove_initiator'])
     )
@@ -229,6 +253,7 @@ def main():
     elif module.params['action'] == "delete_hostgroup":
         delete_hostgroup(apiconnection=conn,module=module)
 
+    # TODO add and remove host/initiator functions to be added
 
 
 
