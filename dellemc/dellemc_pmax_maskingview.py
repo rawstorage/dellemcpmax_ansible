@@ -123,47 +123,61 @@ def main():
     host = ""
     pg = ""
     sg = ""
-    existing_sg_mvs = get_masking_views_from_storage_group(
-        storagegroup=module.params['sgname'])
     valid_mv_components = True
-
+    mv_details = "New Masking View Not Created"
     # Make sure parameters aren't used in a masking view with a different
-    # name.
-    if len existing_sg_mvs > 0:
-        for mv in existing_sg_mvs:
-            existing_mv_details = dellemc.get_masking_view(
-                masking_view_name=mv)
-            if existing_mv_details['hostId']:
-                host=existing_mv_details['hostId']
-            else:
-                host=existing_mv_details['hostGroupId']
-            sg= existing_mv_details['storageGroupId']
-            pg= existing_mv_details['portGroupId']
-        if sg == module.params['sgname'] and pg == module.params['portgroup_id']\
-            and host == module.params['host_or_cluster']:
-            valid_mv_components = False
+    # name and that SG PG and Host exist
+    sglist = dellemc.get_storage_group_list()
+    pg_list = dellemc.get_portgroup_list()
+    hostlist = dellemc.get_host_list()
+    hostgrouplist = dellemc.get_hostgroup_list()
+    new_mv_components_exits = False
 
-    if module.params['maskingview_name'] not in mvlist and valid_mv_components:
-        dellemc.create_masking_view_existing_components(
-            port_group_name=module.params['portgroup_id'],
-            masking_view_name=module.params['maskingview_name'],
-            host_name=module.params['host_or_cluster'],
-            storage_group_name=module.params['sgname'])
-        changed = True
-        message = "Masking view sucessfully created"
-    elif valid_mv_components = False:
-        message = "Masking Views should be a unique combination of SG, " \
-                  "Port Group and Host or HostGroup please check input " \
-                  "parameters"
+    #Check Masking
+    if module.params['maskingview_name'] not in mvlist:
+        if (module.params['host_or_cluster'] in hostlist or hostgrouplist) and  \
+                (module.params['sgname'] in sglist) and (module.params['portgroup_id'] in pg_list):
+
+            # Check if storage group is already in a view
+            existing_sg_mvs = dellemc.get_masking_views_from_storage_group(
+                storagegroup=module.params['sgname'])
+            if len(existing_sg_mvs) > 0:
+                for mv in existing_sg_mvs:
+                    existing_mv_details = dellemc.get_masking_view(
+                        masking_view_name=mv)
+                    if 'hostId' in existing_mv_details:
+                        host = existing_mv_details['hostId']
+                    else:
+                        host = existing_mv_details['hostGroupId']
+                    sg = existing_mv_details['storageGroupId']
+                    pg = existing_mv_details['portGroupId']
+                if sg == module.params['sgname'] and pg == module.params[
+                    'portgroup_id'] \
+                        and host == module.params['host_or_cluster']:
+                    valid_mv_components = False
+                    mv_details = mv + " Contains the Same Storage Group, " \
+                                      "Port Group and Hosts"
+
+            if valid_mv_components and new_mv_components_exits:
+                dellemc.create_masking_view_existing_components(
+                    port_group_name=module.params['portgroup_id'],
+                    masking_view_name=module.params['maskingview_name'],
+                    host_name=module.params['host_or_cluster'],
+                    storage_group_name=module.params['sgname'])
+                changed = True
+                message = "Masking view sucessfully created"
+                mv_details = dellemc.get_masking_view(
+                    module.params['maskingview_name'])
+            elif not valid_mv_components:
+                message = "Masking Views should be a unique combination of SG, " \
+                          "Port Group and Host or HostGroup please check input " \
+                          "parameters"
     else:
         message = "Masking View Already Esists"
-
-    mv_details = dellemc.get_masking_view(module.params['maskingview_name'])
-
     facts = ({'message': message,
               'mv_details': mv_details})
     result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+    module.exit_json(ansible_facts={'maskingview_detail': facts}, **result)
 
 
 if __name__ == '__main__':
