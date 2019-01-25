@@ -63,20 +63,19 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Create a New Host"
+- name: "Create hosts and Clusters"
   connection: local
   hosts: localhost
   vars:
     array_id: 000197600156
     password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.1.123"
+    unispherehost: "10.60.156.63"
     universion: "90"
     user: smc
     verifycert: false
 
   tasks:
-  - name: Create Host2
+  - name: Create Host
     dellemc_pmax_host:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
@@ -87,8 +86,69 @@ EXAMPLES = '''
         initiator_list:
         - 10000000c98ffea2
         - 10000000c98ffeb3
+        host_id: "AnsibleHost1"
+        action: create_host
+  - name: Create Host2
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        initiator_list:
+        - 10000000c98ffe4a
+        - 10000000c98ff5b3
         host_id: "AnsibleHost2"
         action: create_host
+        
+  - name: "Create Hostgroup"
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        action: create_hostgroup
+        host_list:
+          - "AnsibleHost1"
+          - "AnsibleHost2"
+        hostgroup_id: "AnsibleCluster"
+
+  - name: Delete Cluster
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        hostgroup_id: "AnsibleCluster"
+        action: delete_hostgroup
+
+  - name: Delete Host2
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        host_id: "AnsibleHost2"
+        action: delete_host
+
+  - name: Delete Host1
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        host_id: "AnsibleHost1"
+        action: delete_host
+
 '''
 RETURN = r'''
 '''
@@ -149,24 +209,31 @@ def create_hostgroup(apiconnection, module):
     # Create a New Host
     conn = apiconnection
     dellemc = conn.provisioning
+
     # Check for each host in the host list that it exists, otherwise fail
     # module.
     configuredhostlist = dellemc.get_host_list()
     hostgrouplist = dellemc.get_hostgroup_list()
     host_exists = True
     message = ""
-    if module.params['hostgroup_id'] not in hostgrouplist:
-        for host in module.params["host_list"]:
-            if host not in configuredhostlist:
-                host_exists = False
-                message = host + " does not exist, check input paramters"
-    if module.params['hostgroup_id'] not in hostgrouplist and host_exists:
-        dellemc.create_hostgroup(hostgroup_id=module.params['hostgroup_id'],
-                                 host_list=module.params["host_list"])
-        changed = True
-        message = module.params['hostgroup_id']+" Cluster Created"
+    if module.params['hostgroup_id'] in configuredhostlist:
+        message = "Cluster Name is in use as a host, try add host to cluster " \
+                  "module or use a unique cluster name"
     else:
-        message = "Cluster Name Already Exists"
+        if module.params['hostgroup_id'] not in hostgrouplist:
+            for host in module.params["host_list"]:
+                if host not in configuredhostlist:
+                    host_exists = False
+                    message = host + " does not exist, check input paramters"
+
+
+        if module.params['hostgroup_id'] not in hostgrouplist and host_exists:
+            dellemc.create_hostgroup(hostgroup_id=module.params['hostgroup_id'],
+                                     host_list=module.params["host_list"])
+            changed = True
+            message = module.params['hostgroup_id']+" Cluster Created"
+        else:
+            message = "Cluster Name Already Exists"
 
     facts = ({'message': message})
     result = {'state': 'info', 'changed': changed}
@@ -177,6 +244,7 @@ def delete_hostgroup(apiconnection, module):
     # Create a New Host
     conn = apiconnection
     dellemc = conn.provisioning
+    hostlist = dellemc.get_host_list()
     # Compile a list of existing hosts.
     hostgrouplist = dellemc.get_hostgroup_list()
     # Check if Host Name already exists.
@@ -190,6 +258,14 @@ def delete_hostgroup(apiconnection, module):
         else:
             message = module.params['host_id'] + " host is part of a Masking " \
                                                 "view"
+    # Additional Check, if user deleted all hosts from hostgroup,
+    # the hostgroup becomes a host, if this is the case delete should still
+    # be successful
+    elif module.params['hostgroup_id'] in hostlist:
+        hostdetails = dellemc.get_host(module.params['hostgroup_id'])
+        if (hostdetails["num_of_initiators"]) < 1:
+            dellemc.delete_host(host_id=module.params['hostgroup_id'])
+        message = "Delete Successful"
     else:
         message = "Specified hostgroup does not exist"
     facts = ({'message': message})
