@@ -256,7 +256,7 @@ def delete_portgroup(apiconnection, module):
     pg_list = dellemc.get_portgroup_list(filters=({
     "num_of_masking_views": "0"}))
     message = "no changes made, check that port group exists and is not part" \
-              "of a masking view"
+              " of a masking view"
     if module.params['portgroup_id'] in pg_list:
 
         dellemc.delete_portgroup(module.params['portgroup_id'])
