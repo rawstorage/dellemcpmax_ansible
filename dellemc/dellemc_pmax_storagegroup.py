@@ -96,7 +96,7 @@ EXAMPLES = '''
     array_id: "000197600156"
     password: "smc"
     sgname: "Ansible_SG1"
-    unispherehost: "10.60.156.63"
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: "smc"
     verifycert: false

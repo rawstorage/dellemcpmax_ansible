@@ -67,7 +67,7 @@ options:
       of the initial link. Unlink will remove the association between the
       snapshot and the target storage group, if snapshot time to live value
       has passed the snapshot will be deleted after the unlink operation"
-       
+      ccd  
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -202,7 +202,8 @@ def main():
     argument_spec.update(dict(
             sgname=dict(type='str', required=True),
             snapshotname=dict(type='str', required=True),
-            target_sgname=dict(type='str', required=True),
+            target_sgname=dict(type='str', required=False),
+            time_to_live_hrs=dict(type='str', required=False),
             action=dict(type='str', choices=['create', 'link', 'relink',
                                              'unlink'],
                         required=True)
@@ -217,55 +218,60 @@ def main():
     prov = conn.provisioning
     rep = conn.replication
     sglist = prov.get_storage_group_list()
-    snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
+    message = ""
+    if module.params['action'] == 'create':
+        if module.params['sgname'] in sglist:
+            rep.create_storagegroup_snap(sg_name=module.params['sgname'],
+                                         snap_name=module.params[
+                                             'snapshotname'],
+                                         ttl=module.params[
+                                             'time_to_live_hrs'], hours=True)
+            changed = True
+            message = "Snapshot Created"
+        else:
+            message =" Storage Group not found"
+    else:
+        snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
+        if module.params['sgname'] in sglist and module.params['snapshotname'] \
+                in snaplist:
 
-    if module.params['sgname'] in sglist and module.params['snapshotname'] \
-            in snaplist:
-        if module.params['action'] == 'create':
-            if module.params['sgname'] in sglist:
-                rep.create_storagegroup_snap(sg_name=module.params['sgname'],
+            if module.params['action'] == 'link':
+                rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
                                              snap_name=module.params[
                                                  'snapshotname'],
-                                             ttl=module.params[
-                                                 'ttl'], hours=module.params[
-                        'timeinhours'])
+                                             target_sg_id=module.params[
+                                                 'target_sgname'],
+                                             link=True, new_name=None, gen_num=0,
+                                             async=True)
                 changed = True
-        if module.params['action'] == 'link':
-            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
-                                         snap_name=module.params[
-                                             'snapshotname'],
-                                         target_sg_id=module.params[
-                                             'target_sgname'],
-                                         link=True, new_name=None, gen_num=0,
-                                         async=True)
-            changed = True
-        elif module.params['action'] == 'relink':
-            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
-                                         snap_name=module.params[
-                                             'snapshotname'],
-                                         target_sg_id=module.params[
-                                             'target_sgname'],
-                                         relink=True, gen_num=0, async=True)
-            changed = True
-        elif module.params['action'] == 'unlink':
-            rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
-                                         snap_name=module.params[
-                                             'snapshotname'],
-                                         target_sg_id=module.params[
-                                             'target_sgname'],
-                                         unlink=True, gen_num=0,
-                                         async=True)
 
-            changed = True
-        snapshotdetails = rep.get_snapshot_generation_details(
-            sg_id=module.params[
-                'sgname'], snap_name=module.params['snapshotname'], gen_num=0)
+            elif module.params['action'] == 'relink':
+                rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
+                                             snap_name=module.params[
+                                                 'snapshotname'],
+                                             target_sg_id=module.params[
+                                                 'target_sgname'],
+                                             relink=True, gen_num=0, async=True)
+                changed = True
+            elif module.params['action'] == 'unlink':
+                rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
+                                             snap_name=module.params[
+                                                 'snapshotname'],
+                                             target_sg_id=module.params[
+                                                 'target_sgname'],
+                                             unlink=True, gen_num=0,
+                                             async=True)
+
+                changed = True
+            snapshotdetails = rep.get_snapshot_generation_details(
+                sg_id=module.params[
+                    'sgname'], snap_name=module.params['snapshotname'], gen_num=0)
 
     else:
-        module.exit_json(msg='No Snapshot found with the supplied Parameters')
+       message = 'No Snapshot found with the supplied Parameters'
 
     facts = snapshotdetails
-    result = {'state': 'info', 'changed': changed}
+    result = {'state': 'info', 'message': message, 'changed': changed}
     module.exit_json(ansible_facts={'snapdetail': facts}, **result)
 
 

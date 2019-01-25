@@ -70,7 +70,7 @@ EXAMPLES = '''
   vars:
     array_id: 000197600156
     password: smc
-    unispherehost: "10.60.156.63"
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
     verifycert: false
@@ -95,7 +95,7 @@ EXAMPLES = '''
   vars:
     array_id: 000197600156
     password: smc
-    unispherehost: "10.60.156.63"
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
     verifycert: false
@@ -120,7 +120,7 @@ EXAMPLES = '''
   vars:
     array_id: 000197600156
     password: smc
-    unispherehost: "10.60.156.63"
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
     verifycert: false
@@ -142,7 +142,7 @@ EXAMPLES = '''
   vars:
     array_id: 000197600156
     password: smc
-    unispherehost: "10.60.156.63"
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
     verifycert: false
