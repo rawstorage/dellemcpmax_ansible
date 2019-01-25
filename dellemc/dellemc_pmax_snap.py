@@ -114,6 +114,20 @@ EXAMPLES = '''
     verifycert: false
 
   tasks:
+    - name: Create SnapShot
+    dellemc_pmax_create_snapshot:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        sgname: 'Ansible_SG1'
+        array_id: '000197600156'
+        ttl: 1
+        snapshotname: 'Ansible_SnapShot_1'
+        timeinhours: True
+
+  
     - name: "Link a Snapshot"
       dellemc_pmax_snap:
         unispherehost: "{{unispherehost}}"
@@ -234,7 +248,6 @@ def main():
         snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
         if module.params['sgname'] in sglist and module.params['snapshotname'] \
                 in snaplist:
-
             if module.params['action'] == 'link':
                 rep.modify_storagegroup_snap(source_sg_id=module.params['sgname'],
                                              snap_name=module.params[
@@ -267,8 +280,8 @@ def main():
                 sg_id=module.params[
                     'sgname'], snap_name=module.params['snapshotname'], gen_num=0)
 
-    else:
-       message = 'No Snapshot found with the supplied Parameters'
+        else:
+            message = 'No Snapshot found with the supplied Parameters'
 
     facts = snapshotdetails
     result = {'state': 'info', 'message': message, 'changed': changed}
