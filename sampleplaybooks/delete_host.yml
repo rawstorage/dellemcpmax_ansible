@@ -1,18 +1,18 @@
-- name: "Delete Host"
+- name: "Delete a Host"
   connection: local
   hosts: localhost
   vars:
     array_id: 000197600156
     password: smc
     sgname: Ansible_SG
-    unispherehost: "192.168.123.1"
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
     verifycert: false
 
   tasks:
   - name: Delete Host2
-    dellemc_pmax_deletehost:
+    dellemc_pmax_host:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
@@ -20,3 +20,4 @@
         password: "{{password}}"
         array_id: "{{array_id}}"
         host_id: "AnsibleHost1"
+        action: delete_host

@@ -1,22 +1,25 @@
-- name: "Delete existing Storage Group"
+- name: "Provision Storage For DB Cluster"
   connection: local
   hosts: localhost
   vars:
-    array_id: 000197600156
-    password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.123.1"
+    array_id: "000197600156"
+    password: "smc"
+    sgname: "Ansible_SG1"
+    unispherehost: "192.168.1.1"
     universion: "90"
-    user: smc
+    user: "smc"
     verifycert: false
-
   tasks:
-    - name: "Delete Storage Group"
-      dellemc_pmax_delete_sg:
+    - name: "Delete Existing Storage Group"
+      dellemc_pmax_storagegroup:
         array_id: "{{array_id}}"
+        password: "{{password}}"
+        sgname: "{{sgname}}"
+        slo: "Diamond"
+        srp_id: "SRP_1"
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         user: "{{user}}"
-        password: "{{password}}"
         verifycert: "{{verifycert}}"
-        sgname: "Ansible_SG"
+        action: "delete"
+    - debug: var=storagegroup_detail

@@ -1,22 +1,21 @@
-- name: Delete Port Group
-  hosts: localhost
+- name: "Create a New Port Group"
   connection: local
+  hosts: localhost
   vars:
-        unispherehost: '192.168.123.1'
-        uniport: 8443
-        universion: "90"
-        verifycert: False
-        user: 'smc'
-        password: 'smc'
-        array_id: "000197600156"
+    array_id: 000197600156
+    password: smc
+    unispherehost: "192.168.1.1"
+    universion: "90"
+    user: smc
+    verifycert: false
   tasks:
-    - name: Delete Port Group
-      dellpmax_deleteportgroup:
+    - name: "Delete Existing Port Group"
+      dellemc_pmax_portgroup:
              unispherehost: "{{unispherehost}}"
              universion: "{{universion}}"
              verifycert: "{{verifycert}}"
              user: "{{user}}"
              password: "{{password}}"
              array_id: "{{array_id}}"
-             portgroup_id: "Ansible_PG"
-
+             portgroup_id: "Ansible_PG1"
+             action: delete

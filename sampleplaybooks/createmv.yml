@@ -4,15 +4,15 @@
   vars:
     array_id: 000197600156
     password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.123.1"
+    sgname: Ansible_SG1
+    unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
     verifycert: false
 
   tasks:
     - name: "Create Masking View for Host Access to storage group volumes"
-      dellemc_pmax_createmaskingview:
+      dellemc_pmax_maskingview:
         array_id: "{{array_id}}"
         password: "{{password}}"
         unispherehost: "{{unispherehost}}"
@@ -20,7 +20,6 @@
         user: "{{user}}"
         verifycert: "{{verifycert}}"
         sgname: "{{sgname}}"
-        portgroup_id: "Ansible_PG"
+        portgroup_id: "Ansible_PG1"
         host_or_cluster : "AnsibleCluster"
-        maskingview_name: "MyMaskingView"
-
+        maskingview_name: "Ansible_MV"
