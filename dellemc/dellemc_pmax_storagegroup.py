@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # Copyright: (C) 2018, DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING
+# or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -17,13 +18,14 @@ DOCUMENTATION = '''
 author:
   - "Paul Martin (@rawstorage)"
 short_description: "Storage group Control Module for Dell EMC PowerMax or 
-VMAX All Flash Arrays, can be used to show, create, delete, and add or
-remove volumes"
+VMAX All Flash Arrays, can be used to show, create, delete, and add volumes,
+volume removal is handled in dellemc_pmax_volume module"
 version_added: "2.8"
 description:
-  - "This module has been tested against UNI 9.0. Every effort has been made
-  to verify the scripts run with valid input. These modules are a tech preview."
-module: dellemc_pmax_create_emptysg
+  - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
+  and PowerMAX. Every effort has been made to verify the scripts run with 
+  valid input. These modules are a tech preview."
+module: dellemc_pmax_storagegroup
 options:
   array_id:
     description:
@@ -69,14 +71,15 @@ options:
       - "password for Unisphere user"
   luns:
     description:
-      - "List describing volumes to be added or list of luns and volumes 
-      to be removed from a storage group. Not Required for Show or Delete 
-      actions. See examples for usage"
+      - "List describing volumes to be added or list of luns expected to be 
+      in the storage group. list should have a unique combination of 
+      num_vols, vol_size, vol_name. See examples for usage"
     type: list
     required: false
-  action:
+    Default: empty list which will try to create storage group with no volumes 
+  state:
     description:
-      - "create, add_volumes, remove_volumes, show, delete"
+      - "Valid values are present, absent, or current"
     type: string
     required: true
        
@@ -101,25 +104,13 @@ EXAMPLES = '''
     user: "smc"
     verifycert: false
     lun_list:
-      - cap_unit: "GB"
-        num_vols: 2
+      - num_vols: 2
         vol_size: 1
         vol_name: "DATA"
-      - cap_unit: "GB"
-        num_vols: 2
+      - num_vols: 2
         vol_size: 1
         vol_name: "REDO"
-    new_lun_list:
-      - cap_unit: "GB"
-        num_vols: 2
-        vol_size: 1
-        vol_name: "FRA"
-      - cap_unit: "GB"
-        num_vols: 2
-        vol_size: 1
-        vol_name: "TEMP"
-    lun_removal_list:
-      - "001A2"
+
   tasks:
     - name: "Create New Storage Group volumes"
       dellemc_pmax_storagegroup:
@@ -133,23 +124,8 @@ EXAMPLES = '''
         user: "{{user}}"
         verifycert: "{{verifycert}}"
         luns: "{{lun_list}}"
-        action: create
+        state: present
     - debug: var=storagegroup_detail    
-
-    - name: "Add Storage Group volumes"
-      dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        slo: "Diamond"
-        srp_id: "SRP_1"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
-        luns: "{{new_lun_list}}"
-        action: "add_volumes"
-    - debug: var=storagegroup_detail
 
     - name: "Show Storage Group"
       dellemc_pmax_storagegroup:
@@ -162,22 +138,7 @@ EXAMPLES = '''
         universion: "{{universion}}"
         user: "{{user}}"
         verifycert: "{{verifycert}}"
-        action: "show"
-    - debug: var=storagegroup_detail
-
-    - name: "Remove volumes"
-      dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        slo: "Diamond"
-        srp_id: "SRP_1"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
-        luns: "{{lun_remove_list}}"
-        action: remove_volumes
+        state: "current"
     - debug: var=storagegroup_detail
 
     - name: "Delete Existing Storage Group"
@@ -191,7 +152,7 @@ EXAMPLES = '''
         universion: "{{universion}}"
         user: "{{user}}"
         verifycert: "{{verifycert}}"
-        action: "delete"
+        state: "absent"
     - debug: var=storagegroup_detail
 '''
 RETURN = r'''
@@ -208,7 +169,7 @@ ok: [localhost] => {
     }
 }
 
-Add Volumes to Strogae Group
+Add Volumes to Storage Group
 
 ok: [localhost] => {
     "storagegroup_detail": {
@@ -243,17 +204,8 @@ ok: [localhost] => {
     }
 }
 
-Remove Volume
-
-ok: [localhost] => {
-    "storagegroup_detail": {
-        "message": "Volumes Sucessfully Removed"
-    }
-}
-
 Show Storage Group
 
-*
 ok: [localhost] => {
     "storagegroup_detail": {
         "message": "No changes made",
@@ -339,47 +291,95 @@ from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 def create_sg(apiconnection, module):
     dellemc = apiconnection
     changed = False
+    newvols = 0
     # Compile a list of existing storage groups.
+    message = "no changes made"
     sglist = dellemc.get_storage_group_list()
     if module.params["luns"]:
-        lunlist = module.params["luns"]
+        playbook_lunlist = module.params["luns"]
     else:
-        lunlist = []
+        playbook_lunlist = []
     if module.params['sgname'] not in sglist:
-        dellemc.create_storage_group(srp_id='SRP_1',
+        dellemc.create_storage_group(srp_id="SRP_1",
                                      sg_id=module.params['sgname'],
                                      slo=module.params['slo'])
+
         changed = True
-        if len(lunlist) > 0:
-            for lun in lunlist:
+        message = "Empty Storage Group Created"
+        if len(playbook_lunlist) > 0:
+            for lun in playbook_lunlist:
                 dellemc.add_new_vol_to_storagegroup(sg_id=module.params[
-                    'sgname'], cap_unit=lun['cap_unit'],
+                    'sgname'], cap_unit="GB",
                                                     num_vols=lun[
                                                         'num_vols'],
                                                     vol_size=lun['vol_size'],
                                                     vol_name=lun['vol_name'])
+            message = "New Storage Group Created and Volumes Added"
+    # If the storage group exists, we need to check if the volumelist
+    # matches what the user has in the playbook
+    elif module.params['sgname'] in sglist and len(playbook_lunlist) > 0:
+        # Get list of volumes currently in the SG
+        sg_lunlist = dellemc.get_volume_list(
+            filters={'storageGroupId': module.params['sgname']})
+        sg_lun_detail_list = []
+        for lun in sg_lunlist:
+            lundetails = dellemc.get_volume(lun)
+            sg_lun_detail_list.append(lundetails)
+        # Check if existing luns in SG match the request made in playbook
+        # lunlist if there are enough volumes matching the size and type
+        # volumes count and capacity will remain the same, if not the volume
+        #  count will be increased to match the request
+        for lun_request in playbook_lunlist:
+            # Assuming each list item is a unique request combination of
+            # volume size and identifier/name
+            existing_vols = 0
+            for existinglun in sg_lun_detail_list:
+                if (existinglun['cap_gb'] == lun_request['vol_size']) and (
+                        existinglun['volume_identifier'] == lun_request['vol_name']):
+                    existing_vols = existing_vols + 1
+            if existing_vols < lun_request['num_vols']:
+                newvols = lun_request['num_vols'] - existing_vols
+                dellemc.add_new_vol_to_storagegroup(sg_id=module.params['sgname'],
+                                                    num_vols=newvols,
+                                                    vol_size=lun_request['vol_size'],
+                                                    cap_unit="GB",
+                                                    vol_name=lun_request['vol_name'])
+                message = "New Volumes Added to Storage Group"
+                changed = True
+    sg_lunlist = dellemc.get_volume_list(
+            filters={'storageGroupId': module.params['sgname']})
+    sg_lun_detail_list = []
+    for lun in sg_lunlist:
+        lundetails = dellemc.get_volume(lun)
+        sg_lun_detail_list.append(lundetails)
+
+    # TODO add logic to check lun requests and if volumes don't match
+    # TODO request then message out to check volume list and use volume module
+    # TODO to remove if that is what is desired
+
     facts = ({'storagegroup_name': module.params['sgname'],
-              'sg_volumes':dellemc.get_volume_list(filters={
-        'storageGroupId': module.params['sgname']})})
+              'sg_volumes': sg_lun_detail_list,
+              'message': message})
     result = {'state': 'info', 'changed': changed}
 
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+
 
 def delete_sg(apiconnection, module):
     dellemc = apiconnection
     changed = False
     # Compile a list of existing storage groups.
     sglist = dellemc.get_storage_group_list()
-    message="Resource already in the requested state"
+    message = "Resource already in the requested state"
     if module.params['sgname'] in sglist:
         sgmaskingviews = dellemc.get_masking_views_from_storage_group(
             storagegroup=module.params['sgname'])
-        if len(sgmaskingviews)==0:
+        if len(sgmaskingviews) == 0:
             dellemc.delete_storagegroup(storagegroup_id=module.params['sgname'])
-            changed=True
+            changed = True
             message = "Delete Operation Completed"
         else:
-            message="Storage Group is Part of a Masking View, please check " \
+            message = "Storage Group is Part of a Masking View, please check " \
                     "before retrying"
     sglistafter = dellemc.get_storage_group_list()
     facts = ({'storagegroups': sglistafter, 'message': message})
@@ -387,69 +387,7 @@ def delete_sg(apiconnection, module):
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
 
 
-def add_volumes(apiconnection, module):
-    dellemc = apiconnection
-    changed = False
-    message = "Check input Parameters, Storage Group not found"
-    sglist = dellemc.get_storage_group_list()
-    newvols = []
-    # Check if storage group exists before making changes
-    if module.params['sgname'] in sglist:
-        sgvols_before = dellemc.get_volume_list(filters={
-            'storageGroupId': module.params['sgname']})
-        if module.params["luns"]:
-            lunlist = module.params["luns"]
-            if len(lunlist) > 0:
-                for lun in lunlist:
-                    dellemc.add_new_vol_to_storagegroup(
-                        sg_id=module.params['sgname'],
-                        cap_unit=lun['cap_unit'],
-                        num_vols=lun['num_vols'],
-                        vol_size=lun['vol_size'],
-                        vol_name=lun['vol_name'])
-            changed = True
-        sgvols_after = dellemc.get_volume_list(filters={
-            'storageGroupId': module.params['sgname']})
-        newvols = (list(set(sgvols_after) - set(sgvols_before)))
-        message = "Operation Successful"
-    facts = ({'message': message,'storagegroup_name': module.params['sgname'],
-              'new_volumes': newvols, 'sgdetails': dellemc.get_storage_group(
-        storage_group_name=module.params['sgname'])})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
-
-def remove_volumes(apiconnection, module):
-    dellemc = apiconnection
-    changed = False
-    lunlist = module.params["luns"]
-    sglist = dellemc.get_storage_group_list()
-    message = "no changes made, check input parameters"
-    # Check storeage group exists
-    if module.params['sgname'] in sglist:
-        sg_vols = dellemc.get_volume_list(filters={
-            'storageGroupId': module.params['sgname']})
-        result = set(sg_vols) >= set(lunlist)
-        # make sure all volumes are present in the storage group and that
-        # deleting will not result in an empty storage group.
-        if len(sg_vols) > len(lunlist):
-            if result:
-                for lun in lunlist:
-                    dellemc.remove_vol_from_storagegroup(sg_id=module.params[
-                        'sgname'], vol_id=lun)
-                    message = "Volumes Sucessfully Removed"
-                    changed = True
-            else:
-                message = "Not All Volumes in the list provided are in " \
-                          "storage group"
-    else:
-        changed = False
-        message = "Result will remove all volumes from SG"
-
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
-
-def show_storage_group (apiconnection, module):
+def show_storage_group(apiconnection, module):
     dellemc = apiconnection
     changed = False
     sglist = dellemc.get_storage_group_list()
@@ -460,17 +398,17 @@ def show_storage_group (apiconnection, module):
     if module.params['sgname'] in sglist:
         sg_vols = dellemc.get_volume_list(filters={
             'storageGroupId': module.params['sgname']})
-        sg_details =  dellemc.get_storage_group(
-        storage_group_name=module.params['sgname'])
+        sg_details = dellemc.get_storage_group(
+            storage_group_name=module.params['sgname'])
     else:
         changed = False
-        message = "Stroage Group Name is not Valid, verify input " \
-                      "parameters"
+        message = "Stroage Group Name is not Valid, verify input parameters"
     facts = ({'message': message,
               'sgdetails': sg_details,
              'volumes': sg_vols})
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+
 
 def main():
     argument_spec = dellemc_pmax_argument_spec()
@@ -479,29 +417,23 @@ def main():
         srp_id=dict(type='str', required=False),
         slo=dict(type='str', required=False),
         luns=dict(type='list', required=False),
-        action=dict(type='str', choices=['create', 'add_volumes',
-                                         'remove_volumes', 'delete', 'show'],
-                                        required=True)
+        state=dict(type='str', choices=['present', 'absent', 'current'],
+                   required=True)
     ))
     module = AnsibleModule(argument_spec=argument_spec)
     # Setup connection to API and import provisioning modules.
     conn = pmaxapi(module)
     dellemc = conn.provisioning
 
-    if module.params['action'] == "create":
+    if module.params['state'] == "present":
         create_sg(apiconnection=dellemc, module=module)
 
-    elif module.params['action'] == "show":
-        show_storage_group(apiconnection=dellemc, module=module)
-
-    elif module.params['action'] == "add_volumes":
-        add_volumes(apiconnection=dellemc, module=module)
-
-    elif module.params['action'] == "delete":
+    elif module.params['state'] == "absent":
         delete_sg(apiconnection=dellemc, module=module)
 
-    elif module.params['action'] == "remove_volumes":
-        remove_volumes(apiconnection=dellemc, module=module)
+    elif module.params['state'] == "current":
+        show_storage_group(apiconnection=dellemc, module=module)
+
 
 if __name__ == '__main__':
     main()
