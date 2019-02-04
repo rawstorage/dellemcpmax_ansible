@@ -399,7 +399,5 @@ def main():
         delete_sg(apiconnection=dellemc, module=module)
 
 
-
-
 if __name__ == '__main__':
     main()
