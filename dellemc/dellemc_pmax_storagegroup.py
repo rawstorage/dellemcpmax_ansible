@@ -127,20 +127,6 @@ EXAMPLES = '''
         state: present
     - debug: var=storagegroup_detail    
 
-    - name: "Show Storage Group"
-      dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
-        slo: "Diamond"
-        srp_id: "SRP_1"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
-        state: "current"
-    - debug: var=storagegroup_detail
-
     - name: "Delete Existing Storage Group"
       dellemc_pmax_storagegroup:
         array_id: "{{array_id}}"
@@ -156,129 +142,108 @@ EXAMPLES = '''
     - debug: var=storagegroup_detail
 '''
 RETURN = r'''
-Create Storage Group
 ok: [localhost] => {
     "storagegroup_detail": {
+        "message": "no changes made",
         "sg_volumes": [
-            "001A2",
-            "001A3",
-            "001A4",
-            "001A5"
+            {
+                "vol_name": "DATA",
+                "vol_size_gb": 1.0,
+                "volumeId": "00178",
+                "wwn": "60000970000197600156533030313738"
+            },
+            {
+                "vol_name": "DATA",
+                "vol_size_gb": 1.0,
+                "volumeId": "00179",
+                "wwn": "60000970000197600156533030313739"
+            },
+            {
+                "vol_name": "REDO",
+                "vol_size_gb": 1.0,
+                "volumeId": "0017A",
+                "wwn": "60000970000197600156533030313741"
+            },
+            {
+                "vol_name": "REDO",
+                "vol_size_gb": 1.0,
+                "volumeId": "0017B",
+                "wwn": "60000970000197600156533030313742"
+            }
         ],
-        "storagegroup_name": "Ansible_SG1"
-    }
-}
-
-Add Volumes to Storage Group
-
-ok: [localhost] => {
-    "storagegroup_detail": {
-        "message": "Operation Successful",
-        "new_volumes": [
-            "001AC",
-            "001AB",
-            "001AA",
-            "001AD"
-        ],
-        "sgdetails": {
+        "storagegroup_detail": {
             "VPSaved": "100.0%",
             "base_slo_name": "Diamond",
-            "cap_gb": 11.02,
+            "cap_gb": 4.01,
             "compression": true,
             "device_emulation": "FBA",
             "num_of_child_sgs": 0,
             "num_of_masking_views": 0,
             "num_of_parent_sgs": 0,
             "num_of_snapshots": 0,
-            "num_of_vols": 11,
+            "num_of_vols": 4,
             "service_level": "Diamond",
             "slo": "Diamond",
             "slo_compliance": "STABLE",
             "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG1",
+            "storageGroupId": "Ansible_SG",
             "type": "Standalone",
             "unprotected": true,
             "vp_saved_percent": 100.0
         },
-        "storagegroup_name": "Ansible_SG1"
+        "storagegroup_name": "Ansible_SG"
     }
 }
-
-Show Storage Group
-
 ok: [localhost] => {
     "storagegroup_detail": {
-        "message": "No changes made",
-        "sgdetails": {
+        "message": "no changes made",
+        "sg_volumes": [
+            {
+                "vol_name": "DATA",
+                "vol_size_gb": 1.0,
+                "volumeId": "00178",
+                "wwn": "60000970000197600156533030313738"
+            },
+            {
+                "vol_name": "DATA",
+                "vol_size_gb": 1.0,
+                "volumeId": "00179",
+                "wwn": "60000970000197600156533030313739"
+            },
+            {
+                "vol_name": "REDO",
+                "vol_size_gb": 1.0,
+                "volumeId": "0017A",
+                "wwn": "60000970000197600156533030313741"
+            },
+            {
+                "vol_name": "REDO",
+                "vol_size_gb": 1.0,
+                "volumeId": "0017B",
+                "wwn": "60000970000197600156533030313742"
+            }
+        ],
+        "storagegroup_detail": {
             "VPSaved": "100.0%",
             "base_slo_name": "Diamond",
-            "cap_gb": 11.02,
+            "cap_gb": 4.01,
             "compression": true,
             "device_emulation": "FBA",
             "num_of_child_sgs": 0,
             "num_of_masking_views": 0,
             "num_of_parent_sgs": 0,
             "num_of_snapshots": 0,
-            "num_of_vols": 11,
+            "num_of_vols": 4,
             "service_level": "Diamond",
             "slo": "Diamond",
             "slo_compliance": "STABLE",
             "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG1",
+            "storageGroupId": "Ansible_SG",
             "type": "Standalone",
             "unprotected": true,
             "vp_saved_percent": 100.0
         },
-        "volumes": [
-            "001A3",
-            "001A4",
-            "001A5",
-            "001A6",
-            "001A7",
-            "001A8",
-            "001A9",
-            "001AA",
-            "001AB",
-            "001AC",
-            "001AD"
-        ]
-    }
-}
-
-Delete Stroage Group 
-
-ok: [localhost] => {
-    "storagegroup_detail": {
-        "message": "Delete Operation Completed",
-        "storagegroups": [
-            "Child3_RM_1",
-            "CriticalDatabase_1",
-            "Demo_GK",
-            "esx142_gks",
-            "esx142_gks_1",
-            "ESX_32_GKs",
-            "ESXi_DEMO_SG",
-            "FinanceOracle",
-            "HSBC",
-            "KMR-CSG",
-            "Lab_GK",
-            "MF_TEST",
-            "MTS_ESX_28",
-            "MTS_ESX_30",
-            "MTS_ESX_32",
-            "MTS_ESX_40",
-            "MyMetroSG",
-            "Pat_VdBench_1",
-            "Pat_VdBench_2",
-            "Pat_VdBench_3",
-            "Pat_VdBench_4",
-            "paul_csg2",
-            "PM_DELL40_GK",
-            "POC_Kit",
-            "SRDF_TEST",
-            "test1234",
-            "Uniprod_MGMT"
-        ]
+        "storagegroup_name": "Ansible_SG"
     }
 }
 
@@ -346,19 +311,32 @@ def create_sg(apiconnection, module):
                                                     vol_name=lun_request['vol_name'])
                 message = "New Volumes Added to Storage Group"
                 changed = True
+            elif existing_vols > lun_request['num_vols']:
+                message = "It looks like you are trying to remove volumes, " \
+                          "please use dellemc_pmax_volume module for this " \
+                          "operation, this module only supports create, " \
+                          "add and show operations"
+
+    # TODO add logic for capturing and dealing with resize operations.
+
     sg_lunlist = dellemc.get_volume_list(
             filters={'storageGroupId': module.params['sgname']})
-    sg_lun_detail_list = []
+
+    lunsummary = []
     for lun in sg_lunlist:
         lundetails = dellemc.get_volume(lun)
-        sg_lun_detail_list.append(lundetails)
-
-    # TODO add logic to check lun requests and if volumes don't match
-    # TODO request then message out to check volume list and use volume module
-    # TODO to remove if that is what is desired
+        # sg_lun_detail_list.append(lundetails)
+        sglun = {}
+        sglun['volumeId'] = lundetails['volumeId']
+        sglun['vol_name'] = lundetails['volume_identifier']
+        sglun['vol_size_gb'] = lundetails['cap_gb']
+        sglun['wwn'] = lundetails['effective_wwn']
+        lunsummary.append(sglun)
 
     facts = ({'storagegroup_name': module.params['sgname'],
-              'sg_volumes': sg_lun_detail_list,
+              'storagegroup_detail': dellemc.get_storage_group(
+                  storage_group_name=module.params['sgname']),
+              'sg_volumes': lunsummary,
               'message': message})
     result = {'state': 'info', 'changed': changed}
 
@@ -375,6 +353,18 @@ def delete_sg(apiconnection, module):
         sgmaskingviews = dellemc.get_masking_views_from_storage_group(
             storagegroup=module.params['sgname'])
         if len(sgmaskingviews) == 0:
+            # Remove volume label name before deleting storage group
+            lunlist=dellemc.get_volume_list(filters={'storageGroupId': module.params['sgname']})
+            for lun in lunlist:
+                dellemc._modify_volume(device_id=lun, payload={
+                    "editVolumeActionParam": {
+                        "modifyVolumeIdentifierParam": {
+                            "volumeIdentifier": {
+                                "volumeIdentifierChoice": "none"
+                            }
+                        }
+                    }
+                })
             dellemc.delete_storagegroup(storagegroup_id=module.params['sgname'])
             changed = True
             message = "Delete Operation Completed"
@@ -387,29 +377,6 @@ def delete_sg(apiconnection, module):
     module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
 
 
-def show_storage_group(apiconnection, module):
-    dellemc = apiconnection
-    changed = False
-    sglist = dellemc.get_storage_group_list()
-    message = "No changes made"
-    # Check storeage group exists
-    sg_details = "nothing to display"
-    sg_vols = []
-    if module.params['sgname'] in sglist:
-        sg_vols = dellemc.get_volume_list(filters={
-            'storageGroupId': module.params['sgname']})
-        sg_details = dellemc.get_storage_group(
-            storage_group_name=module.params['sgname'])
-    else:
-        changed = False
-        message = "Stroage Group Name is not Valid, verify input parameters"
-    facts = ({'message': message,
-              'sgdetails': sg_details,
-             'volumes': sg_vols})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
-
-
 def main():
     argument_spec = dellemc_pmax_argument_spec()
     argument_spec.update(dict(
@@ -417,7 +384,7 @@ def main():
         srp_id=dict(type='str', required=False),
         slo=dict(type='str', required=False),
         luns=dict(type='list', required=False),
-        state=dict(type='str', choices=['present', 'absent', 'current'],
+        state=dict(type='str', choices=['present', 'absent'],
                    required=True)
     ))
     module = AnsibleModule(argument_spec=argument_spec)
@@ -431,8 +398,7 @@ def main():
     elif module.params['state'] == "absent":
         delete_sg(apiconnection=dellemc, module=module)
 
-    elif module.params['state'] == "current":
-        show_storage_group(apiconnection=dellemc, module=module)
+
 
 
 if __name__ == '__main__':
