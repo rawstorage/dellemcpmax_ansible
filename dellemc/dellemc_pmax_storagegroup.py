@@ -148,25 +148,25 @@ ok: [localhost] => {
         "sg_volumes": [
             {
                 "vol_name": "DATA",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "00178",
                 "wwn": "60000970000197600156533030313738"
             },
             {
                 "vol_name": "DATA",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "00179",
                 "wwn": "60000970000197600156533030313739"
             },
             {
                 "vol_name": "REDO",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "0017A",
                 "wwn": "60000970000197600156533030313741"
             },
             {
                 "vol_name": "REDO",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "0017B",
                 "wwn": "60000970000197600156533030313742"
             }
@@ -200,25 +200,25 @@ ok: [localhost] => {
         "sg_volumes": [
             {
                 "vol_name": "DATA",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "00178",
                 "wwn": "60000970000197600156533030313738"
             },
             {
                 "vol_name": "DATA",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "00179",
                 "wwn": "60000970000197600156533030313739"
             },
             {
                 "vol_name": "REDO",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "0017A",
                 "wwn": "60000970000197600156533030313741"
             },
             {
                 "vol_name": "REDO",
-                "vol_size_gb": 1.0,
+                "cap_gb": 1.0,
                 "volumeId": "0017B",
                 "wwn": "60000970000197600156533030313742"
             }
@@ -329,7 +329,7 @@ def create_sg(apiconnection, module):
         sglun = {}
         sglun['volumeId'] = lundetails['volumeId']
         sglun['vol_name'] = lundetails['volume_identifier']
-        sglun['vol_size_gb'] = lundetails['cap_gb']
+        sglun['cap_gb'] = lundetails['cap_gb']
         sglun['wwn'] = lundetails['effective_wwn']
         lunsummary.append(sglun)
 
