@@ -152,7 +152,11 @@ EXAMPLES = '''
 '''
 RETURN = r'''
 '''
-def create_host(apiconnection, module):
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
+
+
+def create_or_modify_host(apiconnection, module):
     changed = False
     # Create a New Host
     conn = apiconnection
@@ -163,18 +167,42 @@ def create_host(apiconnection, module):
     message = ""
     # Check all initiators are valid for use in new host
     valid_initiator = True
-    for initiator in module.params['initiator_list']:
-        if dellemc.is_initiator_in_host(initiator=initiator):
-           valid_initiator = False
-    # Check if Host Name already exists.
-    if module.params['host_id'] not in hostlist and valid_initiator:
+    bad_initiators_list = []
+    valid_initiator_list =[]
+    host_initiators = dellemc.get_host(host_id=module.params['host_id'])[
+        'initiator']
+
+    if module.params['host_id'] not in hostlist:
         dellemc.create_host(host_name=module.params['host_id'],
                             initiator_list=module.params['initiator_list'])
         message = "Host Sucessfully Created"
         changed = True
+
+    elif len(module.params['initiator_list']) < len(host_initiators):
+        # if fewer initiators specified than are in the host already attempt
+        #  to remove the excess.
+        remove_init_list=[]
+        for initiator in host_initiators:
+            if initiator not in module.params['initiator_list']:
+                remove_init_list.append(initiator)
+        dellemc.modify_host(host_id=module.params['host_id'],
+                            remove_init_list=remove_init_list)
+        changed = True
+        message = "initiators %s have been removed from host" % \
+                  str(remove_init_list)
+
+    elif len(module.params['initiator_list']) > len(host_initiators):
+        add_init_list=[]
+        for initiator in module.params['initiator_list']:
+            if initiator not in host_initiators:
+                add_init_list.append(initiator)
+        dellemc.modify_host(host_id=module.params['host_id'],
+                            add_init_list=add_init_list)
+        changed = True
+        message = "initiators added"
+
     else:
-        message = "A host with the specified name already exists, " \
-                  "or initiator wwwn is in another host"
+        message = str(valid_initiator_list)
     facts = ({'message': message})
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'host_detail': facts}, **result)
@@ -204,133 +232,22 @@ def delete_host(apiconnection, module):
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'host_detail': facts}, **result)
 
-def create_hostgroup(apiconnection, module):
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-
-    # Check for each host in the host list that it exists, otherwise fail
-    # module.
-    configuredhostlist = dellemc.get_host_list()
-    hostgrouplist = dellemc.get_hostgroup_list()
-    host_exists = True
-    message = ""
-    if module.params['hostgroup_id'] in configuredhostlist:
-        message = "Cluster Name is in use as a host, try add host to cluster " \
-                  "module or use a unique cluster name"
-    else:
-        if module.params['hostgroup_id'] not in hostgrouplist:
-            for host in module.params["host_list"]:
-                if host not in configuredhostlist:
-                    host_exists = False
-                    message = host + " does not exist, check input paramters"
-
-
-        if module.params['hostgroup_id'] not in hostgrouplist and host_exists:
-            dellemc.create_hostgroup(hostgroup_id=module.params['hostgroup_id'],
-                                     host_list=module.params["host_list"])
-            changed = True
-            message = module.params['hostgroup_id']+" Cluster Created"
-        else:
-            message = "Cluster Name Already Exists"
-
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'host_detail': facts}, **result)
-
-def delete_hostgroup(apiconnection, module):
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-    hostlist = dellemc.get_host_list()
-    # Compile a list of existing hosts.
-    hostgrouplist = dellemc.get_hostgroup_list()
-    # Check if Host Name already exists.
-    if module.params['hostgroup_id'] in hostgrouplist:
-        mvlist = dellemc.get_masking_views_by_host(\
-                initiatorgroup_name=module.params['host_id'])
-        if len(mvlist) < 1:
-            dellemc.delete_hostgroup(hostgroup_id=module.params['hostgroup_id'])
-            changed = True
-            message = "HostGroup Deleted"
-        else:
-            message = module.params['host_id'] + " host is part of a Masking " \
-                                                "view"
-    # Additional Check, if user deleted all hosts from hostgroup,
-    # the hostgroup becomes a host, if this is the case delete should still
-    # be successful
-    elif module.params['hostgroup_id'] in hostlist:
-        hostdetails = dellemc.get_host(module.params['hostgroup_id'])
-        if (hostdetails["num_of_initiators"]) < 1:
-            dellemc.delete_host(host_id=module.params['hostgroup_id'])
-        message = "Delete Successful"
-    else:
-        message = "Specified hostgroup does not exist"
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'host_detail': facts}, **result)
-
-def modify_hostgroup(apiconnection, module, action):
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-    # Compile a list of existing hosts.
-    hostgrouplist = dellemc.get_hostgroup_list()
-    # Check if Host Name already exists.
-    if module.params['hostgroup_id'] in hostgrouplist:
-        mvlist = dellemc.get_masking_views_by_host(\
-                initiatorgroup_name=module.params['host_id'])
-        if len(mvlist) < 1:
-            dellemc.delete_hostgroup(hostgroup_id=module.params['hostgroup_id'])
-            changed = True
-            message = "HostGroup Deleted"
-        else:
-            message = module.params['host_id'] + " host is part of a Masking " \
-                                                "view"
-    else:
-        message = "Specified hostgroup does not exist"
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'host_detail': facts}, **result)
-
-
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 def main():
     argument_spec = dellemc_pmax_argument_spec()
     argument_spec.update(dict(
         host_id=dict(type='str', required=False),
         initiator_list=dict(type='list', required=False),
-        host_list=dict(type='list', required=False),
-        hostgroup_id=dict(type='str', required=False),
-        action=dict(type='str', required=True, choices=['create_host',
-                                                        'delete_host',
-                                                        'create_hostgroup',
-                                                        'delete_hostgroup',
-                                                        'add_host_to_hostgroup',
-                                                        'remove_host_from_hostgroup',
-                                                        'add_initiator',
-                                                        'remove_initiator'])
+        state=dict(type='str', required=True, choices=['present', 'absent'])
     )
     )
     module = AnsibleModule(argument_spec=argument_spec)
     # Setup connection to API
     conn = pmaxapi(module)
-    if module.params['action'] == "create_host":
-        create_host(apiconnection=conn,module=module)
-    elif module.params['action'] == "delete_host":
-        delete_host(apiconnection=conn,module=module)
-    elif module.params['action'] == "create_hostgroup":
-        create_hostgroup(apiconnection=conn,module=module)
-    elif module.params['action'] == "delete_hostgroup":
-        delete_hostgroup(apiconnection=conn,module=module)
-
-    # TODO add and remove host/initiator functions to be added
-
+    if module.params['state'] == "present":
+        create_or_modify_host(apiconnection=conn, module=module)
+    elif module.params['state'] == "absent":
+        delete_host(apiconnection=conn, module=module)
 
 
 if __name__ == '__main__':
