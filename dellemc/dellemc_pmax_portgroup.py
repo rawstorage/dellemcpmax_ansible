@@ -1,7 +1,8 @@
 #!/usr/bin/python
 # Copyright (C) 2018 DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
-# GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+# GNU General Public License v3.0+ (see COPYING or
+# https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
@@ -16,12 +17,19 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
-short_description: "Create port group on Dell EMC PowerMax or VMAX All
+short_description: "Create or modify port group on Dell EMC PowerMax or VMAX All
 Flash"
 version_added: "2.8"
 description:
-  - "This module has been tested against UNI 9.0. Every effort has been made
-  to verify the scripts run with valid input. These modules are a tech preview"
+  - "This module will ensure that the Specified Port Group is Present or 
+  Absent on the array specified resulting in either a create or delete 
+  operation.  The port list supplied will be checked against the current 
+  configuration of the port group and added/removed as needed. This module has 
+  been 
+  tested with Unisphere 9.0. 
+  Every effort has been made to verify the scripts run with valid input. 
+  These modules are a tech preview"
+  
 module: dellemc_pmax_createportgroup
 options:
   array_id:
@@ -52,9 +60,9 @@ options:
     description:
       - "32 Character string no special character permitted except for
       underscore"
-  port_list:
+  array_ports:
     description:
-      - "List of WWNs of Frontend Ports to be part of Port Group either FA
+      - "List of Ports to be part of Port Group either FA
       or SE"
 requirements:
   - Ansible
@@ -83,98 +91,109 @@ EXAMPLES = '''
              user: "{{user}}"
              password: "{{password}}"
              array_id: "{{array_id}}"
-             portgroup_id: "Ansible_PG1"
+             portgroup_id: "Ansible_PG"
              array_ports:
                -  FA-1D:4
                -  FA-2D:4
-             action: create
-             
-- name: "Add Ports to Existing Port Group"
-  connection: local
-  hosts: localhost
-  vars:
-    array_id: 000197600156
-    password: smc
-    unispherehost: "192.168.1.1"
-    universion: "90"
-    user: smc
-    verifycert: false
-  tasks:
-    - name: "Modfy Port Group by adding ports"
-      dellemc_pmax_portgroup:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             portgroup_id: "Ansible_PG1"
-             array_ports:
-               -  FA-1D:6
-               -  FA-2D:6
-             action: add_ports
-
-- name: "Delete a New Port Group"
-  connection: local
-  hosts: localhost
-  vars:
-    array_id: 000197600156
-    password: smc
-    unispherehost: "192.168.1.1"
-    universion: "90"
-    user: smc
-    verifycert: false
-  tasks:
-    - name: "Delete Existing Port Group"
-      dellemc_pmax_portgroup:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             portgroup_id: "Ansible_PG"
-             action: delete
-             
-- name: "Remove Ports from Existing Port Group"
-  connection: local
-  hosts: localhost
-  vars:
-    array_id: 000197600156
-    password: smc
-    unispherehost: "192.168.1.1"
-    universion: "90"
-    user: smc
-    verifycert: false
-  tasks:
-    - name: "Modfy Port Group by removing ports"
-      dellemc_pmax_portgroup:
-             unispherehost: "{{unispherehost}}"
-             universion: "{{universion}}"
-             verifycert: "{{verifycert}}"
-             user: "{{user}}"
-             password: "{{password}}"
-             array_id: "{{array_id}}"
-             portgroup_id: "Ansible_PG1"
-             array_ports:
-               -  FA-1D:6
-               -  FA-2D:6
-             action: remove_ports
-
-             
+             state: present            
 '''
 RETURN = r'''
+changed: [localhost] => {
+    "ansible_facts": {
+        "portgroup_detail": {
+            "message": "no changes made, check input parameters",
+            "portgroup_details": {
+                "maskingview": [],
+                "num_of_masking_views": 0,
+                "num_of_ports": 2,
+                "portGroupId": "Ansible_PG",
+                "symmetrixPortKey": [
+                    {
+                        "directorId": "FA-2D",
+                        "portId": "FA-2D:4"
+                    },
+                    {
+                        "directorId": "FA-1D",
+                        "portId": "FA-1D:4"
+                    }
+                ],
+                "type": "Fibre"
+            }
+        }
+    },
+    "changed": true,
+    "invocation": {
+        "module_args": {
+            "array_id": "000197600156",
+            "array_ports": [
+                "FA-1D:4",
+                "FA-2D:4"
+            ],
+            "password": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+            "portgroup_id": "Ansible_PG",
+            "state": "present",
+            "unispherehost": "10.60.156.63",
+            "universion": 90,
+            "user": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+            "verifycert": false
+        }
+    },
+    "state": "info"
+}
+
+ok: [localhost] => {
+    "ansible_facts": {
+        "portgroup_detail": {
+            "message": "no changes made, check that port group exists and is not part of a masking view",
+            "portgroups": [
+                "Demo_GK_PG",
+                "HCA_PG",
+                "HSBC_PG",
+                "Lab_GK_PG",
+                "MF_TEST_PG",
+                "MyMetroSG_PG",
+                "Pat_VdBench_1_PG",
+                "Pat_VdBench_2_PG",
+                "Pat_VdBench_3_PG",
+                "Pat_VdBench_4_PG",
+                "PM_DEL40_GK_PG",
+                "SRDF_TEST_PG",
+                "tesjn_PG",
+                "Uniprod_MGMT_PG"
+            ]
+        }
+    },
+    "changed": false,
+    "invocation": {
+        "module_args": {
+            "array_id": "000197600156",
+            "array_ports": [
+                "FA-1D:4",
+                "FA-2D:4",
+            ],
+            "password": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+            "portgroup_id": "Ansible_PG",
+            "state": "absent",
+            "unispherehost": "10.60.156.63",
+            "universion": 90,
+            "user": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+            "verifycert": false
+        }
+    },
+    "state": "info"
+}
 '''
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
-
-def create_portgroup(apiconnection, module):
+# TODO convert to Class
+def create_or_modify_portgroup(apiconnection, module):
     dellemc = apiconnection
     changed = False
     pg_list = dellemc.get_portgroup_list()
     pg_details= "Nothing to Display"
     message = "no changes made, check input parameters"
+    valid_array_ports = dellemc.get_port_list()
     # Check if Port group exists
 
     if module.params['portgroup_id'] not in pg_list:
@@ -186,75 +205,84 @@ def create_portgroup(apiconnection, module):
             director_port["directorId"] = item.split(":")[0]
             director_port["portId"] = item.split(":")[1]
             ports_list.append(director_port)
-        dellemc.create_multiport_portgroup(
-            module.params.get('portgroup_id'), ports_list)
-        pg_details = dellemc.get_portgroup(module.params['portgroup_id'])
-        changed = True
-    else:
-        message = "Port Group already exists"
-        pg_details = dellemc.get_portgroup(module.params['portgroup_id'])
-    facts = ({'message': message, 'portgroup_details': pg_details})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
+        try:
+            dellemc.create_multiport_portgroup(
+                module.params.get('portgroup_id'), ports_list)
+            pg_details = dellemc.get_portgroup(module.params['portgroup_id'])
+            changed = True
+        except Exception:
+            message = "problem creating port group"
+            module.exit_json(msg = message)
 
-def add_port(apiconnection, module):
-    # No Checks to see if ports are already in the group due to API
-    # behavior, API will retrun success if the change doesn't need to be
-    # done for add
-    dellemc = apiconnection
-    changed = False
-    pg_list = dellemc.get_portgroup_list()
-    pg_details= "Nothing to Display"
-    message = "no changes made, check input parameters"
-    # Check if Port group exists
-    if module.params['portgroup_id'] in pg_list:
-        for item in module.params.get('array_ports'):
-            dellemc.modify_portgroup(module.params['portgroup_id'],
-            add_port=tuple(item.split(":")))
-        changed = True
-        pg_details = dellemc.get_portgroup(module.params['portgroup_id'])
-
-    else:
-        message = "No storage group matches the name specified, check input"
-    facts = ({'message': message, 'portgroup_details': pg_details})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
-
-def remove_ports(apiconnection, module):
-    dellemc = apiconnection
-    changed = False
-    pg_list = dellemc.get_portgroup_list()
-    pg_details= "Nothing to Display"
-    message = "no changes made, check input parameters"
-    # Check if Port group exists
-    if module.params['portgroup_id'] in pg_list:
-        pg_portlist = dellemc.get_portgroup(module.params['portgroup_id'])["symmetrixPortKey"]
-        for i in pg_portlist:
+    elif module.params['portgroup_id'] in pg_list:
+        # check if port list supplied matches with what is in the group.
+        # Building 2 dictionaries with same keys to compare
+        ansible_ports_list = []
+        for i in module.params['array_ports']:
+            directorid, portid = i.split(":")
+            ansible_ports_list.append({'directorId':directorid,
+                                       'portId':portid})
+        array_pg_ports_list = []
+        array_pg_ports = dellemc.get_portgroup(portgroup_id=module.params[
+            'portgroup_id'])["symmetrixPortKey"]
+        # normalise array_pg dictionary list to match expected, Bugfix until
+        #  9.1
+        for i in array_pg_ports:
             try:
                 split = i['portId'].split(':')
                 i['portId'] = split[1]
             except IndexError:
                 pass
-            for item in module.params['array_ports']:
-                array_dir, array_port = item.split(":")
-                if i["directorId"] == array_dir and i['portId'] == array_port:
-                    dellemc.modify_portgroup(module.params['portgroup_id'],
-                                             remove_port=tuple(item.split(":")))
-                    changed = True
-        pg_details = dellemc.get_portgroup(module.params['portgroup_id'])
+            array_pg_ports_list.append(i)
 
-    else:
-        message = "No storage group matches the name specified, check input"
+        # Attempt to add new ports.
+        if len(ansible_ports_list) > len(array_pg_ports_list):
+            for ansible_port in ansible_ports_list:
+                if ansible_port not in array_pg_ports_list:
+                    ansible_port_tuple = (ansible_port['directorId'], ansible_port[
+                        'portId'])
+                    try:
+                        dellemc.modify_portgroup(module.params['portgroup_id'],
+                                                 add_port=ansible_port_tuple)
+                        changed = True
+                        pg_details = dellemc.get_portgroup(
+                            module.params['portgroup_id'])
+                        message = "Ports Added"
+                    except Exception:
+                        message = "Unable to Add Port " \
+                                  "Check port %s is valid and of the correct " \
+                                  "emulation " % str(ansible_port_tuple)
+                        pg_details = dellemc.get_portgroup(
+                            module.params['portgroup_id'])
+        elif len(ansible_ports_list) < len(array_pg_ports_list):
+            for array_port in array_pg_ports_list:
+                if array_port not in ansible_ports_list:
+
+                    try:
+                        array_port_tuple=(array_port['directorId'], array_port[
+                            'portId'])
+                        dellemc.modify_portgroup(portgroup_id=module.params[
+                            'portgroup_id'], remove_port=array_port_tuple)
+                        changed = True
+                        message = "Ports Removed"
+                        pg_details = dellemc.get_portgroup(module.params[
+                            'portgroup_id'])
+                    except Exception:
+                        message = "Unable to remove last port in group"
+        else:
+            message = "No Changes made"
+
     facts = ({'message': message, 'portgroup_details': pg_details})
     result = {'state': 'info', 'changed': changed}
     module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
 
+
 def delete_portgroup(apiconnection, module):
     dellemc = apiconnection
     changed = False
-    #Build a list of Port Groups that are not in masking view
-    pg_list = dellemc.get_portgroup_list(filters=({
-    "num_of_masking_views": "0"}))
+    # Build a list of Port Groups that are not in masking view
+    pg_list = dellemc.get_portgroup_list(filters=({"num_of_masking_views"
+                                                   :"0"}))
     message = "no changes made, check that port group exists and is not part" \
               " of a masking view"
     if module.params['portgroup_id'] in pg_list:
@@ -268,37 +296,32 @@ def delete_portgroup(apiconnection, module):
     module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
 
 
-
 def main():
     changed = False
     argument_spec = dellemc_pmax_argument_spec()
     argument_spec.update(dict(
             portgroup_id=dict(type='str', required=True),
-            action=dict(type='str',required=True,choices=['create', 'show',
-                                                          'add_ports',
-                                                          'remove_ports',
-                                                          'delete']),
+            state=dict(type='str', required=True, choices=['absent',
+                                                          'present']),
             array_ports=dict(type='list', default=[])
+            )
         )
-    )
+
     module = AnsibleModule(argument_spec=argument_spec)
     # Setup connection to API and import provisioning modules.
     conn = pmaxapi(module)
     dellemc = conn.provisioning
-    if module.params['action'] == 'show':
-        result.update(dellemc.get_portgroup(
-            module.params['port_group']))
-    elif module.params['action'] == 'create':
-        create_portgroup(apiconnection=dellemc, module=module)
-    elif module.params['action'] == 'add_ports':
-        add_port(apiconnection=dellemc, module=module)
-    elif module.params['action'] == 'remove_ports':
-        remove_ports(apiconnection=dellemc, module=module)
-    elif module.params['action'] == 'delete':
+
+    if module.params['state'] == 'present':
+        create_or_modify_portgroup(apiconnection=dellemc, module=module)
+
+    elif module.params['state'] == 'absent':
         delete_portgroup(apiconnection=dellemc, module=module)
+
     else:
         module.fail_json(msg='unsupported action')
-
     module.exit_json(changed=changed)
+
+
 if __name__ == '__main__':
     main()
