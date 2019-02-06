@@ -167,7 +167,7 @@ changed: [localhost] => {
             "password": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
             "portgroup_id": "Ansible_PG",
             "state": "present",
-            "unispherehost": "10.60.156.63",
+            "unispherehost": "192.168.1.1",
             "universion": 90,
             "user": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
             "verifycert": false
@@ -209,7 +209,7 @@ ok: [localhost] => {
             "password": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
             "portgroup_id": "Ansible_PG",
             "state": "absent",
-            "unispherehost": "10.60.156.63",
+            "unispherehost": "192.168.1.1",
             "universion": 90,
             "user": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
             "verifycert": false
