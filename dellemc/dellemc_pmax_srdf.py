@@ -143,7 +143,7 @@ def main():
 
     # Setup connection to API and import replicaiton functions.
     conn = pmaxapi(module)
-    rep=conn.replication
+    rep = conn.replication
     rdf_state = "Unknown"
     message = "No Changes"
     rdf_sglist = rep.get_storage_group_rep_list(has_srdf=True)
@@ -151,11 +151,16 @@ def main():
         rdfg_list = rep.get_storagegroup_srdfg_list(module.params['sgname'])
         if len(rdfg_list)<=1:
             rdfg = rdfg_list[0]
-            rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
-            , action=module.params['action'], rdfg=rdfg)
-            changed = True
-            rdf_state = rep.get_storagegroup_srdf_details(
-                storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
+            try:
+                rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
+                    ,action=module.params['action'], rdfg=rdfg)
+                changed = True
+                rdf_state = rep.get_storagegroup_srdf_details(
+                    storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
+            except Exception:
+                message = "A problem occured with the SRDF operation, " \
+                          "please verify the storage group is not already in " \
+                          "the requested state"
         else:
             message = 'Specified Storage Group has mult-site RDF Protection ' \
                       'Ansible Module currently supports single Site SRDF ' \
@@ -166,7 +171,7 @@ def main():
 
     facts = rdf_state
     result = ({'state': 'info', 'changed': changed, 'message': message})
-    module.exit_json(ansible_facts={'rdfstate': facts, **result})
+    module.exit_json(ansible_facts={'rdfstate': facts}, **result)
 
 
 if __name__ == '__main__':
