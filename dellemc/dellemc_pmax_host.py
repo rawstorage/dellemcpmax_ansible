@@ -55,6 +55,18 @@ options:
   initiator_list:
     description:
       - "List of WWNs or iQN."
+  state:
+    description:
+      - "expected state of host at the end of task, present will create or 
+      modify a host, absent will delete if the host exists and is not part 
+      of a masking view"
+   wwn_state:
+    description:
+      - "states whether or not the wwns in the list should be added or 
+      removed from the host, present will try to add the wwn in the list, 
+      absent will remove any of the specified wwn. Removal of last wwn will 
+      not be possible if the host is part of a masking view"
+  
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -63,13 +75,13 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Create hosts and Clusters"
+- name: "Create a New Host"
   connection: local
   hosts: localhost
   vars:
     array_id: 000197600156
     password: smc
-    unispherehost: "192.168.1.1"
+    unispherehost: "192.168.1.123"
     universion: "90"
     user: smc
     verifycert: false
@@ -87,8 +99,9 @@ EXAMPLES = '''
         - 10000000c98ffea2
         - 10000000c98ffeb3
         host_id: "AnsibleHost1"
-        action: create_host
-  - name: Create Host2
+        state: present
+        wwn_state: present
+  - name: Add initiator Host
     dellemc_pmax_host:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
@@ -97,60 +110,85 @@ EXAMPLES = '''
         password: "{{password}}"
         array_id: "{{array_id}}"
         initiator_list:
-        - 10000000c98ffe4a
-        - 10000000c98ff5b3
-        host_id: "AnsibleHost2"
-        action: create_host
-        
-  - name: "Create Hostgroup"
-    dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        action: create_hostgroup
-        host_list:
-          - "AnsibleHost1"
-          - "AnsibleHost2"
-        hostgroup_id: "AnsibleCluster"
-
-  - name: Delete Cluster
-    dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        hostgroup_id: "AnsibleCluster"
-        action: delete_hostgroup
-
-  - name: Delete Host2
-    dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        host_id: "AnsibleHost2"
-        action: delete_host
-
-  - name: Delete Host1
-    dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        - 10000000c98ffec3
+        - 10000000c98ffec4
         host_id: "AnsibleHost1"
-        action: delete_host
+        state: present
+        wwn_state: present
+  - name: remove initiators from host
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        initiator_list:
+        - 10000000c98ffea2
+        - 10000000c98ffeb3
+        host_id: "AnsibleHost1"
+        state: present
+        wwn_state: absent
+  - name: Delete Host
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        initiator_list:
+        - 10000000c98ffea2
+        - 10000000c98ffeb3
+        host_id: "AnsibleHost1"
+        state: absent
+        wwn_state: absent
 
 '''
 RETURN = r'''
+    "ansible_facts": {
+        "host_detail": {
+            "message": "initiators added"
+        }
+    },
+    "changed": true,
+    "host_detail": {
+        "consistent_lun": false,
+        "disabled_flags": "",
+        "enabled_flags": "",
+        "hostId": "AnsibleHost1",
+        "initiator": [
+            "10000000c98ffea2",
+            "10000000c98ffeb3",
+            "10000000c98ffec3",
+            "10000000c98ffec4"
+        ],
+        "num_of_host_groups": 0,
+        "num_of_initiators": 4,
+        "num_of_masking_views": 0,
+        "num_of_powerpath_hosts": 0,
+        "port_flags_override": false,
+        "type": "Fibre"
+    },
+    "invocation": {
+        "module_args": {
+            "array_id": "000197600156",
+            "host_id": "AnsibleHost1",
+            "initiator_list": [
+                "10000000c98ffea2",
+                "10000000c98ffeb3"
+            ],
+            "password": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+            "state": "present",
+            "unispherehost": "10.60.156.63",
+            "universion": 90,
+            "user": "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+            "verifycert": false,
+            "wwn_state": "present"
+        }
+    },
+    "state": "info"
+}
 '''
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
@@ -158,53 +196,45 @@ from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 def create_or_modify_host(apiconnection, module):
     changed = False
-    # Create a New Host
     conn = apiconnection
     dellemc = conn.provisioning
-    # Compile a list of existing hosts.
     hostlist = dellemc.get_host_list()
-    # Check if initiators are already in use.
-    message = ""
-    # Check all initiators are valid for use in new host
-    valid_initiator = True
-    bad_initiators_list = []
-    valid_initiator_list =[]
-    host_initiators = dellemc.get_host(host_id=module.params['host_id'])[
-        'initiator']
+    hostdetail ={}
 
     if module.params['host_id'] not in hostlist:
-        dellemc.create_host(host_name=module.params['host_id'],
-                            initiator_list=module.params['initiator_list'])
-        message = "Host Sucessfully Created"
-        changed = True
+        try:
+            dellemc.create_host(host_name=module.params['host_id'],
+                                initiator_list=module.params['initiator_list'])
+            message = "Host Sucessfully Created"
+            changed = True
+            hostdetail = dellemc.get_host(host_id=module.params['host_id'])
+        except Exception:
+            message= "unable to create host with the specified parameters, " \
+                     "check hostname is unique and wwns are not in use"
 
-    elif len(module.params['initiator_list']) < len(host_initiators):
-        # if fewer initiators specified than are in the host already attempt
-        #  to remove the excess.
-        remove_init_list=[]
-        for initiator in host_initiators:
-            if initiator not in module.params['initiator_list']:
-                remove_init_list.append(initiator)
-        dellemc.modify_host(host_id=module.params['host_id'],
-                            remove_init_list=remove_init_list)
-        changed = True
-        message = "initiators %s have been removed from host" % \
-                  str(remove_init_list)
+    elif module.params['wwn_state'] == 'absent':
+        try:
+            dellemc.modify_host(host_id=module.params['host_id'],
+                                remove_init_list=module.params['initiator_list'])
+            changed = True
+            message = "Host initiators removed"
+            hostdetail = dellemc.get_host(host_id=module.params['host_id'])
+        except Exception:
+            message = "unable to remove initiators, please check the " \
+                      "supplied list"
 
-    elif len(module.params['initiator_list']) > len(host_initiators):
-        add_init_list=[]
-        for initiator in module.params['initiator_list']:
-            if initiator not in host_initiators:
-                add_init_list.append(initiator)
-        dellemc.modify_host(host_id=module.params['host_id'],
-                            add_init_list=add_init_list)
-        changed = True
-        message = "initiators added"
+    elif module.params['wwn_state'] == 'present':
+        try:
+            dellemc.modify_host(host_id=module.params['host_id'],
+                                add_init_list=module.params['initiator_list'])
+            changed = True
+            message = "initiators added"
+            hostdetail = dellemc.get_host(host_id=module.params['host_id'])
+        except Exception:
+            message = "unable to add initiators, check the list and retry"
 
-    else:
-        message = str(valid_initiator_list)
     facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
+    result = {'state': 'info', 'changed': changed, 'host_detail': hostdetail}
     module.exit_json(ansible_facts={'host_detail': facts}, **result)
 
 
@@ -236,9 +266,10 @@ def delete_host(apiconnection, module):
 def main():
     argument_spec = dellemc_pmax_argument_spec()
     argument_spec.update(dict(
-        host_id=dict(type='str', required=False),
-        initiator_list=dict(type='list', required=False),
-        state=dict(type='str', required=True, choices=['present', 'absent'])
+        host_id=dict(type='str', required=True),
+        initiator_list=dict(type='list', required=True),
+        state=dict(type='str', required=True, choices=['present', 'absent']),
+        wwn_state=dict(type='str', required=True, choices=['present', 'absent'])
     )
     )
     module = AnsibleModule(argument_spec=argument_spec)
