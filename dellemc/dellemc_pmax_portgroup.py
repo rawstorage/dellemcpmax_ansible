@@ -62,8 +62,16 @@ options:
       underscore"
   array_ports:
     description:
-      - "List of Ports to be part of Port Group either FA
-      or SE"
+      - "List of Ports to be part of Port Group either FA or SE"
+  state:
+    description:
+      - "Whether Port group should exist or not"
+    required: true
+  port_state:
+    description:
+      - "Whether Array Ports in list should be part of the port group or not"
+    required: true
+    
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -95,7 +103,34 @@ EXAMPLES = '''
              array_ports:
                -  FA-1D:4
                -  FA-2D:4
-             state: present            
+             state: present 
+             port_state: in_pg    
+    - name: "Remove ports"
+      dellemc_pmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG2"
+             array_ports:
+               -  FA-2D:8
+             state: present
+             port_state: out_of_pg
+    - name "Delete Port Group"
+      dellemc_pmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG2"
+             array_ports:
+               -  FA-2D:8
+             state: absent
+             port_state: out_of_pg       
 '''
 RETURN = r'''
 changed: [localhost] => {
@@ -236,7 +271,8 @@ def create_or_modify_portgroup(apiconnection, module):
             array_pg_ports_list.append(i)
 
         # Attempt to add new ports.
-        if len(ansible_ports_list) > len(array_pg_ports_list):
+        if module.params['portgroup_id'] in pg_list and module.params[
+                'port_state'] == 'in_pg':
             for ansible_port in ansible_ports_list:
                 if ansible_port not in array_pg_ports_list:
                     ansible_port_tuple = (ansible_port['directorId'], ansible_port[
@@ -254,21 +290,20 @@ def create_or_modify_portgroup(apiconnection, module):
                                   "emulation " % str(ansible_port_tuple)
                         pg_details = dellemc.get_portgroup(
                             module.params['portgroup_id'])
-        elif len(ansible_ports_list) < len(array_pg_ports_list):
-            for array_port in array_pg_ports_list:
-                if array_port not in ansible_ports_list:
-
-                    try:
-                        array_port_tuple=(array_port['directorId'], array_port[
-                            'portId'])
-                        dellemc.modify_portgroup(portgroup_id=module.params[
-                            'portgroup_id'], remove_port=array_port_tuple)
-                        changed = True
-                        message = "Ports Removed"
-                        pg_details = dellemc.get_portgroup(module.params[
-                            'portgroup_id'])
-                    except Exception:
-                        message = "Unable to remove last port in group"
+        # Attempt to remove ports.
+        elif module.params['portgroup_id'] in pg_list and module.params[
+                'port_state'] == 'out_of_pg':
+            for port in module.params['array_ports']:
+                ansible_port_tuple = tuple(port.split(":"))
+                try:
+                    dellemc.modify_portgroup(portgroup_id=module.params[
+                        'portgroup_id'], remove_port=ansible_port_tuple)
+                    changed = True
+                    pg_details = dellemc.get_portgroup(module.params[
+                                                           'portgroup_id'])
+                except Exception:
+                    message = "Unable to remove one or more ports " \
+                              "specified"
         else:
             message = "No Changes made"
 
@@ -303,7 +338,9 @@ def main():
             portgroup_id=dict(type='str', required=True),
             state=dict(type='str', required=True, choices=['absent',
                                                           'present']),
-            array_ports=dict(type='list', default=[])
+            array_ports=dict(type='list', default=[]),
+            port_state=dict(type='str', required=True, choices=['in_pg',
+                                                       'out_of_pg']),
             )
         )
 
