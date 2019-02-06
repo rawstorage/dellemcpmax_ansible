@@ -155,7 +155,7 @@ def main():
             , action=module.params['action'], rdfg=rdfg)
             changed = True
             rdf_state = rep.get_storagegroup_srdf_details(
-                storagegroup_id=module.params['sgname'], rdfg_num=rdfg
+                storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
         else:
             message = 'Specified Storage Group has mult-site RDF Protection ' \
                       'Ansible Module currently supports single Site SRDF ' \
