@@ -1,0 +1,34 @@
+- name: "Provision a new storage group"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    array_id: "000197600156"
+    password: "smc"
+    sgname: "Ansible_SG"
+    unispherehost: "192.168.1.1"
+    universion: "90"
+    user: "smc"
+    verifycert: false
+    lun_list:
+      - num_vols: 2
+        vol_size: 1
+        vol_name: "DATA"
+      - num_vols: 2
+        vol_size: 1
+        vol_name: "REDO"
+  tasks:
+    - name: "Create New Storage Group volumes"
+      dellemc_pmax_storagegroup:
+        array_id: "{{array_id}}"
+        password: "{{password}}"
+        sgname: "{{sgname}}"
+        slo: "Diamond"
+        srp_id: "SRP_1"
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        user: "{{user}}"
+        verifycert: "{{verifycert}}"
+        luns: "{{lun_list}}"
+        state: 'present'
+    - debug: var=storagegroup_detail

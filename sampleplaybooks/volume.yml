@@ -1,0 +1,29 @@
+- name: Provision Storage For DB Cluster
+  hosts: localhost
+  connection: local
+  vars:
+        unispherehost: '192.168.1.123'
+        universion: "90"
+        verifycert: False
+        user: 'smc'
+        password: 'smc'
+        array_id: '000197600156'
+  tasks:
+  - name: Modify Volume Sizes and Labels
+    dellemc_pmax_volume:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        sgname: 'Ansible_SG'
+        in_sg: "present"
+        volumes:
+          - device_id: "000BB"
+            cap_gb: 5
+            vol_name: "LABEL"
+          - device_id: "000BA"
+            cap_gb: 5
+            vol_name: "LABEL"
+  - debug: var=storagegroup_detail
