@@ -4,7 +4,6 @@
   vars:
     array_id: 000197600156
     password: smc
-    sgname: Ansible_SG1
     unispherehost: "192.168.1.1"
     universion: "90"
     user: smc
@@ -19,7 +18,8 @@
         universion: "{{universion}}"
         user: "{{user}}"
         verifycert: "{{verifycert}}"
-        sgname: "{{sgname}}"
-        portgroup_id: "Ansible_PG1"
-        host_or_cluster : "AnsibleCluster"
-        maskingview_name: "Ansible_MV"
+        sgname: "Ansible_SG"
+        portgroup_id: "Ansible_PG"
+        host_or_cluster : "AnsibleHost1"
+        maskingview_name: "AnsibleMV"
+        state: absent

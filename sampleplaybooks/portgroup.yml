@@ -17,8 +17,8 @@
              user: "{{user}}"
              password: "{{password}}"
              array_id: "{{array_id}}"
-             portgroup_id: "Ansible_PG1"
+             portgroup_id: "Ansible_PG2"
              array_ports:
-               -  FA-1D:4
-               -  FA-2D:4
-             action: create
+               -  FA-2D:8
+             state: present
+             port_state: out_of_pg
