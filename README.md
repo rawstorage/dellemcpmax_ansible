@@ -1,6 +1,19 @@
 # dellemcpmax_ansible
 Library of Modules and Sample Runbooks for Dell EMC PowerMax &amp; VMAX customers to integrate with Ansible
 
+Support Information
+
+While every effort has been made to ensure that these modules are working as
+ intended, there is no formal support.  These modules are intended to 
+ provide examples and users should test thoroughly before using in their 
+ environments.  The template module is provided for people to be able to 
+ quickly implement their own functionality.
+ 
+ If you do run into an issue please open an issue against the GitHub 
+ repository and it will be resolved by one of the contributors.
+ 
+ Feedback is always welcome, we hope you find these examples useful. 
+
 requirements:
     - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
     VMAX All Flash, VMAX3, or PowerMAX storage Array
