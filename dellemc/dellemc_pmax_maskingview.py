@@ -105,52 +105,11 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
-def create_maskingview(apiconnection, module):
-    conn = apiconnection
-    dellemc = conn.provisioning
-    changed = False
-    mv_details = "Nothing to display"
-    # Check Masking
-    try:
-        dellemc.create_masking_view_existing_components(
-                    port_group_name=module.params['portgroup_id'],
-                    masking_view_name=module.params['maskingview_name'],
-                    host_name=module.params['host_or_cluster'],
-                    storage_group_name=module.params['sgname'])
-        changed = True
-        message = "Masking view successfully created"
-        mv_details = dellemc.get_masking_view(masking_view_name=module.params[
-                                                  'maskingview_name'])
+class DellEmcPmaxMaskingview(object):
 
-    except Exception:
-        message = "Error Creating Masking view rerun playbook with -vvv to " \
-                  "check error message"
-    facts = ({'message': message,
-              'mv_details': mv_details})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'maskingview_detail': facts}, **result)
-
-
-def delete_maskingview(apiconnection, module):
-    conn = apiconnection
-    dellemc = conn.provisioning
-    changed = False
-    mv_details = ""
-    message = ""
-    try:
-        dellemc.delete_masking_view(maskingview_name=module.params['maskingview_name'])
-        changed = True
-    except Exception:
-        message = "Unable to Delete the specified Masking view"
-    facts = ({'message': message,
-              'mv_details': mv_details})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'maskingview_detail': facts}, **result)
-
-
-def main():
-    argument_spec = dellemc_pmax_argument_spec()
-    argument_spec.update(dict(
+    def __init__(self):
+        self.argument_spec = dellemc_pmax_argument_spec()
+        self.argument_spec.update(dict(
             sgname=dict(type='str', required=True),
             host_or_cluster=dict(type='str', required=True),
             portgroup_id=dict(type='str', required=True),
@@ -158,13 +117,65 @@ def main():
             state=dict(type='str', choices=['present', 'absent'],
                        required=True)
         )
-    )
-    module = AnsibleModule(argument_spec=argument_spec)
-    conn = pmaxapi(module)
-    if module.params['state'] == "present":
-        create_maskingview(apiconnection=conn, module=module)
-    elif module.params['state'] == 'absent':
-        delete_maskingview(apiconnection=conn, module=module)
+        )
+
+        self.module = AnsibleModule(argument_spec=self.argument_spec)
+
+        self.conn = pmaxapi(self.module)
+
+    def create_maskingview(self):
+        changed = False
+        mv_details = "Nothing to display"
+        # Check Masking
+        try:
+            self.conn.provisioning.create_masking_view_existing_components(
+                        port_group_name=self.module.params['portgroup_id'],
+                        masking_view_name=self.module.params['maskingview_name'],
+                        host_name=self.module.params['host_or_cluster'],
+                        storage_group_name=self.module.params['sgname'])
+            changed = True
+            message = "Masking view successfully created"
+            mv_details = self.conn.provisioning.get_masking_view(
+                masking_view_name=self.module.params[
+                                                      'maskingview_name'])
+
+        except Exception:
+            message = "Error Creating Masking view rerun playbook with -vvv to " \
+                      "check error message"
+        facts = ({'message': message,
+                  'mv_details': mv_details})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'maskingview_detail': facts},
+                          **result)
+
+    def delete_maskingview(self):
+        changed = False
+        mv_details = ""
+        message = ""
+        try:
+            self.conn.provisioning.delete_masking_view(
+                maskingview_name=self.module.params['maskingview_name'])
+            changed = True
+        except Exception:
+            message = "Unable to Delete the specified Masking view"
+        facts = ({'message': message,
+                  'mv_details': mv_details})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'maskingview_detail': facts},
+                          **result)
+
+    def apply_module(self):
+        if self.module.params['state'] == "present":
+            self.create_maskingview()
+        elif self.module.params['state'] == 'absent':
+            self.delete_maskingview()
+
+
+def main():
+
+    d = DellEmcPmaxMaskingview()
+    d.apply_module()
+
 
 if __name__ == '__main__':
     main()
