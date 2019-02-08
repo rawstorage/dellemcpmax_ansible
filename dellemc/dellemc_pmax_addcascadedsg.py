@@ -102,6 +102,7 @@ dellemc_pmax_createsg:
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
+
 def main():
     changed = False
     argument_spec = dellemc_pmax_argument_spec()
@@ -120,13 +121,12 @@ def main():
     if module.params['parent_sg'] and module.params['child_sg'] in sglist:
         # Check that parent SG is either of type parent or standalone with
         # no volumes
-        if dellemc.get_storage_group(module.params['parent_sg'])["type"]== "Standalone"
-            and dellemc.get_storage_group(module.params['parent_sg'])[
-                "num_of_vols"]=0:
+        if dellemc.get_storage_group(module.params['parent_sg'])["type"] == "Standalone"\
+           and dellemc.get_storage_group(module.params['parent_sg'])["num_of_vols"] == 0:
             dellemc.add_child_sg_to_parent_sg(child_sg=module.params[
                 'child_sg'], parent_sg=module.params['parent_sg'])
             changed = True
-        elif dellemc.get_storage_group(module.params['parent_sg'])["type"]==\
+        elif dellemc.get_storage_group(module.params['parent_sg'])["type"] == \
              "Parent":
             dellemc.add_child_sg_to_parent_sg(child_sg=module.params[
                 'child_sg'], parent_sg=module.params['parent_sg'])
@@ -139,5 +139,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
