@@ -5,6 +5,7 @@
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -241,8 +242,8 @@ class DellEmcPortGroup(object):
     def create_or_modify_portgroup(self):
         changed = False
         pg_list = self.conn.provisioning.get_portgroup_list()
-        pg_details= "Nothing to Display"
-        message = "no changes made, check input parameters"
+        pg_details = "Nothing to Display"
+        message = "No changes made, check input parameters"
         valid_array_ports = self.conn.provisioning.get_port_list()
         # Check if Port group exists
 
@@ -258,11 +259,12 @@ class DellEmcPortGroup(object):
             try:
                 self.conn.provisioning.create_multiport_portgroup(
                     self.module.params.get('portgroup_id'), ports_list)
-                pg_details = self.conn.provisioning.get_portgroup(self.module.params['portgroup_id'])
+                pg_details = self.conn.provisioning.get_portgroup(
+                    self.module.params['portgroup_id'])
                 changed = True
             except Exception:
                 message = "problem creating port group"
-                self.module.exit_json(msg = message)
+                self.module.exit_json(msg=message)
 
         elif self.module.params['portgroup_id'] in pg_list:
             # check if port list supplied matches with what is in the group.
@@ -270,11 +272,12 @@ class DellEmcPortGroup(object):
             ansible_ports_list = []
             for i in self.module.params['array_ports']:
                 directorid, portid = i.split(":")
-                ansible_ports_list.append({'directorId':directorid,
-                                           'portId':portid})
+                ansible_ports_list.append({'directorId': directorid,
+                                           'portId': portid})
             array_pg_ports_list = []
-            array_pg_ports = self.conn.provisioning.get_portgroup(portgroup_id=self.module.params[
-                'portgroup_id'])["symmetrixPortKey"]
+            array_pg_ports = self.conn.provisioning.get_portgroup(
+                portgroup_id=self.module.params[
+                    'portgroup_id'])["symmetrixPortKey"]
             # normalise array_pg dictionary list to match expected, Bugfix until
             #  9.1
             for i in array_pg_ports:
@@ -286,36 +289,43 @@ class DellEmcPortGroup(object):
                 array_pg_ports_list.append(i)
 
             # Attempt to add new ports.
-            if self.module.params['portgroup_id'] in pg_list and self.module.params[
-                    'port_state'] == 'in_pg':
+            if self.module.params['portgroup_id'] in pg_list and \
+                    self.module.params[
+                        'port_state'] == 'in_pg':
                 for ansible_port in ansible_ports_list:
                     if ansible_port not in array_pg_ports_list:
-                        ansible_port_tuple = (ansible_port['directorId'], ansible_port[
-                            'portId'])
+                        ansible_port_tuple = (
+                            ansible_port['directorId'], ansible_port[
+                                'portId'])
                         try:
-                            self.conn.provisioning.modify_portgroup(self.module.params['portgroup_id'],
-                                                     add_port=ansible_port_tuple)
+                            self.conn.provisioning.modify_portgroup(
+                                self.module.params['portgroup_id'],
+                                add_port=ansible_port_tuple)
                             changed = True
                             pg_details = self.conn.provisioning.get_portgroup(
                                 self.module.params['portgroup_id'])
                             message = "Ports Added"
                         except Exception:
                             message = "Unable to Add Port " \
-                                      "Check port %s is valid and of the correct " \
+                                      "Check port %s is valid and of the correct" \
                                       "emulation " % str(ansible_port_tuple)
                             pg_details = self.conn.provisioning.get_portgroup(
                                 self.module.params['portgroup_id'])
             # Attempt to remove ports.
-            elif self.module.params['portgroup_id'] in pg_list and self.module.params[
-                    'port_state'] == 'out_of_pg':
+            elif self.module.params['portgroup_id'] in pg_list and \
+                    self.module.params[
+                        'port_state'] == 'out_of_pg':
                 for port in self.module.params['array_ports']:
                     ansible_port_tuple = tuple(port.split(":"))
                     try:
-                        self.conn.provisioning.modify_portgroup(portgroup_id=self.module.params[
-                            'portgroup_id'], remove_port=ansible_port_tuple)
+                        self.conn.provisioning.modify_portgroup(
+                            portgroup_id=self.module.params[
+                                'portgroup_id'],
+                            remove_port=ansible_port_tuple)
                         changed = True
-                        pg_details = self.conn.provisioning.get_portgroup(self.module.params[
-                                                               'portgroup_id'])
+                        pg_details = self.conn.provisioning.get_portgroup(
+                            self.module.params[
+                                'portgroup_id'])
                     except Exception:
                         message = "Unable to remove one or more ports " \
                                   "specified"
@@ -324,23 +334,26 @@ class DellEmcPortGroup(object):
 
         facts = ({'message': message, 'portgroup_details': pg_details})
         result = {'state': 'info', 'changed': changed}
-        self.module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
+        self.module.exit_json(ansible_facts={'portgroup_detail': facts},
+                              **result)
 
     def delete_portgroup(self):
         changed = False
         # Build a list of Port Groups that are not in masking view
-        pg_list = self.conn.provisioning.get_portgroup_list(filters=({"num_of_masking_views"
-                                                       :"0"}))
+        pg_list = self.conn.provisioning.get_portgroup_list(
+            filters=({"num_of_masking_views"
+                      : "0"}))
         if self.module.params['portgroup_id'] in pg_list:
-
-            self.conn.provisioning.delete_portgroup(self.module.params['portgroup_id'])
+            self.conn.provisioning.delete_portgroup(
+                self.module.params['portgroup_id'])
             changed = True
             message = "Port Group Deleted"
         pg_list = self.conn.provisioning.get_portgroup_list()
 
         facts = ({'message': message, 'portgroups': pg_list})
         result = {'state': 'info', 'changed': changed}
-        self.module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
+        self.module.exit_json(ansible_facts={'portgroup_detail': facts},
+                              **result)
 
     def apply_module(self):
         changed = False
