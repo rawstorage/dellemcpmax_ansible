@@ -170,127 +170,130 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
-def remove_volumes(apiconnection, module):
-    dellemc = apiconnection
-    changed = False
-    playbook_luns = module.params["volumes"]
-    playbook_volume_ids=[]
-    for volume in playbook_luns:
-        playbook_volume_ids.append(volume['device_id'])
-    sglist = dellemc.get_storage_group_list()
-    message = "no changes made, check input parameters"
-    # Check storage group exists
-    if module.params['sgname'] in sglist:
-        sg_vols = dellemc.get_volume_list(filters={
-            'storageGroupId': module.params['sgname']})
-        result = set(sg_vols) >= set(playbook_volume_ids)
-        # make sure all volumes are present in the storage group and that
-        # deleting will not result in an empty storage group.
-        if len(sg_vols) > len(playbook_volume_ids):
-            if result:
-                for lun in playbook_volume_ids:
-                    dellemc.remove_vol_from_storagegroup(sg_id=module.params[
-                        'sgname'], vol_id=lun)
-                    message = "Volumes Successfully Removed"
-                    changed = True
-            else:
-                message = "Not All Volumes in the list provided are in " \
-                          "storage group"
-        elif not result:
-            changed = False
-            message = "Check your volume list, not all volumes provided are " \
-                      "part of the specified storage group"
-        elif len(sg_vols) == len(playbook_volume_ids):
-            changed = False
-            message = "Result will remove all volumes from SG"
+class DellEmcVolume(object):
 
-    lunsummary = []
-    for lun in sg_vols:
-        lundetails = dellemc.get_volume(lun)
-        # sg_lun_detail_list.append(lundetails)
-        sglun = {}
-        sglun['volumeId'] = lundetails['volumeId']
-        sglun['vol_name'] = lundetails['volume_identifier']
-        sglun['cap_gb'] = lundetails['cap_gb']
-        sglun['wwn'] = lundetails['effective_wwn']
-        lunsummary.append(sglun)
-
-    facts = ({'storagegroup_name': module.params['sgname'],
-              'storagegroup_detail': dellemc.get_storage_group(
-                  storage_group_name=module.params['sgname']),
-              'sg_volumes': lunsummary,
-              'message': message})
-    result = {'state': 'info', 'changed': changed}
-
-    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
-
-
-def modify_volume(apiconnection, module):
-    dellemc = apiconnection
-    changed = False
-    message = ""
-    # Get a list of all volumes in SG
-    sg_vols = dellemc.get_volume_list(filters={
-        'storageGroupId': module.params['sgname']})
-    for volume in module.params['volumes']:
-        current_volume = dellemc.get_volume(device_id=volume[
-                'device_id'])
-        if current_volume['cap_gb'] < volume['cap_gb']:
-            dellemc.extend_volume(new_size=volume[
-                'cap_gb'],device_id=volume[
-                'device_id'])
-            message = "Volume resized"
-            changed = True
-        else:
-            message = "Unable to resize all volumes specified, check input"
-        # Checks to verify identifier matches the label
-        if volume['vol_name'] == current_volume['volume_identifier'] :
-            message = message + " .No changes made to Volume names"
-        else:
-            dellemc.rename_volume(device_id=volume[
-                'device_id'], new_name=volume[
-                'vol_name'])
-            message = message + " labels have changed"
-            changed = True
-
-    lunsummary = []
-    for lun in sg_vols:
-        lundetails = dellemc.get_volume(lun)
-        # sg_lun_detail_list.append(lundetails)
-        sglun = {}
-        sglun['volumeId'] = lundetails['volumeId']
-        sglun['vol_name'] = lundetails['volume_identifier']
-        sglun['cap_gb'] = lundetails['cap_gb']
-        sglun['wwn'] = lundetails['effective_wwn']
-        lunsummary.append(sglun)
-
-    facts = ({'storagegroup_name': module.params['sgname'],
-              'storagegroup_detail': dellemc.get_storage_group(
-                  storage_group_name=module.params['sgname']),
-              'sg_volumes': lunsummary,
-              'message': message})
-    result = {'state': 'info', 'changed': changed}
-
-    module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
-
-def main():
-    argument_spec = dellemc_pmax_argument_spec()
-    argument_spec.update(dict(
+    def __init__(self):
+        self.argument_spec = dellemc_pmax_argument_spec()
+        self. argument_spec.update(dict(
             volumes=dict(type='list', required=True),
             sgname=dict(type='str', required=True),
-            in_sg=dict(type='str',choices=['present', 'absent'], required=True)
-        )
-    )
-    module = AnsibleModule(argument_spec=argument_spec)
-    # Setup connection to API and import  modules.
-    conn = pmaxapi(module)
-    dellemc = conn.provisioning
+            in_sg=dict(type='str', choices=['present', 'absent'],
+                       required=True)))
+        self.module = AnsibleModule(argument_spec=self.argument_spec)
+        self.conn = pmaxapi(self.module)
 
-    if module.params['in_sg'] == 'absent':
-        remove_volumes(apiconnection=dellemc,module=module)
+    def remove_volumes(self):
+        changed = False
+        playbook_luns = self.module.params["volumes"]
+        playbook_volume_ids=[]
+        for volume in playbook_luns:
+            playbook_volume_ids.append(volume['device_id'])
+        sglist = self.conn.provisioning.get_storage_group_list()
+        message = "no changes made, check input parameters"
+        # Check storage group exists
+        if self.module.params['sgname'] in sglist:
+            sg_vols = self.conn.provisioning.get_volume_list(filters={
+                'storageGroupId': self.module.params['sgname']})
+            result = set(sg_vols) >= set(playbook_volume_ids)
+            # make sure all volumes are present in the storage group and that
+            # deleting will not result in an empty storage group.
+            if len(sg_vols) > len(playbook_volume_ids):
+                if result:
+                    for lun in playbook_volume_ids:
+                        self.conn.provisioning.remove_vol_from_storagegroup(sg_id=self.module.params[
+                            'sgname'], vol_id=lun)
+                        message = "Volumes Successfully Removed"
+                        changed = True
+                else:
+                    message = "Not All Volumes in the list provided are in " \
+                              "storage group"
+            elif not result:
+                changed = False
+                message = "Check your volume list, not all volumes provided are " \
+                          "part of the specified storage group"
+            elif len(sg_vols) == len(playbook_volume_ids):
+                changed = False
+                message = "Result will remove all volumes from SG"
 
-    elif module.params['in_sg'] == 'present':
-        modify_volume(apiconnection=dellemc, module=module)
+        lunsummary = []
+        for lun in sg_vols:
+            lundetails = self.conn.provisioning.get_volume(lun)
+            # sg_lun_detail_list.append(lundetails)
+            sglun = {}
+            sglun['volumeId'] = lundetails['volumeId']
+            sglun['vol_name'] = lundetails['volume_identifier']
+            sglun['cap_gb'] = lundetails['cap_gb']
+            sglun['wwn'] = lundetails['effective_wwn']
+            lunsummary.append(sglun)
+
+        facts = ({'storagegroup_name': self.module.params['sgname'],
+                  'storagegroup_detail': self.conn.provisioning.get_storage_group(
+                      storage_group_name=self.module.params['sgname']),
+                  'sg_volumes': lunsummary,
+                  'message': message})
+        result = {'state': 'info', 'changed': changed}
+
+        self.module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+
+    def modify_volume(self):
+        changed = False
+        message = ""
+        # Get a list of all volumes in SG
+        sg_vols = self.conn.provisioning.get_volume_list(filters={
+            'storageGroupId': self.module.params['sgname']})
+        for volume in self.module.params['volumes']:
+            current_volume = self.conn.provisioning.get_volume(device_id=volume[
+                    'device_id'])
+            if current_volume['cap_gb'] < volume['cap_gb']:
+                self.conn.provisioning.extend_volume(new_size=volume[
+                    'cap_gb'],device_id=volume[
+                    'device_id'])
+                message = "Volume resized"
+                changed = True
+            # TODO add logic to add specific volumes.
+            else:
+                message = "Unable to resize all volumes specified, check input"
+            # Checks to verify identifier matches the label
+            if volume['vol_name'] == current_volume['volume_identifier']:
+                message = message + " .No changes made to Volume names"
+            else:
+                self.conn.provisioning.rename_volume(device_id=volume[
+                    'device_id'], new_name=volume[
+                    'vol_name'])
+                message = message + " labels have changed"
+                changed = True
+
+        lunsummary = []
+        for lun in sg_vols:
+            lundetails = self.conn.provisioning.get_volume(lun)
+            # sg_lun_detail_list.append(lundetails)
+            sglun = {}
+            sglun['volumeId'] = lundetails['volumeId']
+            sglun['vol_name'] = lundetails['volume_identifier']
+            sglun['cap_gb'] = lundetails['cap_gb']
+            sglun['wwn'] = lundetails['effective_wwn']
+            lunsummary.append(sglun)
+
+        facts = ({'storagegroup_name': self.module.params['sgname'],
+                  'storagegroup_detail': self.conn.provisioning.get_storage_group(
+                      storage_group_name=self.module.params['sgname']),
+                  'sg_volumes': lunsummary,
+                  'message': message})
+        result = {'state': 'info', 'changed': changed}
+
+        self.module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+
+    def apply_module(self):
+        if self.module.params['in_sg'] == 'absent':
+            self.remove_volumes()
+
+        elif self.module.params['in_sg'] == 'present':
+            self.modify_volume()
+
+
+def main():
+    d = DellEmcVolume()
+    d.apply_module()
 
 
 if __name__ == '__main__':
