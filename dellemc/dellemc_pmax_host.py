@@ -194,91 +194,96 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
-def create_or_modify_host(apiconnection, module):
-    changed = False
-    conn = apiconnection
-    dellemc = conn.provisioning
-    hostlist = dellemc.get_host_list()
-    hostdetail ={}
+class DellEmcHost(object):
+    def __init__(self):
+        self.argument_spec = dellemc_pmax_argument_spec()
+        self.argument_spec.update(dict(
+            host_id=dict(type='str', required=True),
+            initiator_list=dict(type='list', required=True),
+            state=dict(type='str', required=True,
+                       choices=['present', 'absent']),
+            wwn_state=dict(type='str', required=True,
+                           choices=['present', 'absent'])
+        )
+        )
+        self.module = AnsibleModule(argument_spec=self.argument_spec)
 
-    if module.params['host_id'] not in hostlist:
-        try:
-            dellemc.create_host(host_name=module.params['host_id'],
-                                initiator_list=module.params['initiator_list'])
-            message = "Host Sucessfully Created"
-            changed = True
-            hostdetail = dellemc.get_host(host_id=module.params['host_id'])
-        except Exception:
-            message= "unable to create host with the specified parameters, " \
-                     "check hostname is unique and wwns are not in use"
+        self.conn = pmaxapi(self.module)
 
-    elif module.params['wwn_state'] == 'absent':
-        try:
-            dellemc.modify_host(host_id=module.params['host_id'],
-                                remove_init_list=module.params['initiator_list'])
-            changed = True
-            message = "Host initiators removed"
-            hostdetail = dellemc.get_host(host_id=module.params['host_id'])
-        except Exception:
-            message = "unable to remove initiators, please check the " \
-                      "supplied list"
+    def create_or_modify_host(self):
+        changed = False
+        hostlist = self.conn.provisioning.get_host_list()
+        hostdetail ={}
+        message = ""
 
-    elif module.params['wwn_state'] == 'present':
-        try:
-            dellemc.modify_host(host_id=module.params['host_id'],
-                                add_init_list=module.params['initiator_list'])
-            changed = True
-            message = "initiators added"
-            hostdetail = dellemc.get_host(host_id=module.params['host_id'])
-        except Exception:
-            message = "unable to add initiators, check the list and retry"
+        if self.module.params['host_id'] not in hostlist:
+            try:
+                self.conn.provisioning.create_host(host_name=self.module.params['host_id'],
+                                    initiator_list=self.module.params['initiator_list'])
+                message = "Host Sucessfully Created"
+                changed = True
+                hostdetail = self.conn.provisioning.get_host(host_id=self.module.params['host_id'])
+            except Exception:
+                message= "unable to create host with the specified parameters, " \
+                         "check hostname is unique and wwns are not in use"
 
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed, 'host_detail': hostdetail}
-    module.exit_json(ansible_facts={'host_detail': facts}, **result)
+        elif self.module.params['wwn_state'] == 'absent':
+            try:
+                self.conn.provisioning.modify_host(host_id=self.module.params['host_id'],
+                                    remove_init_list=self.module.params['initiator_list'])
+                changed = True
+                message = "Host initiators removed"
+                hostdetail = self.conn.provisioning.get_host(host_id=self.module.params['host_id'])
+            except Exception:
+                message = "unable to remove initiators, please check the " \
+                          "supplied list"
 
+        elif self.module.params['wwn_state'] == 'present':
+            try:
+                self.conn.provisioning.modify_host(host_id=self.module.params['host_id'],
+                                    add_init_list=self.module.params['initiator_list'])
+                changed = True
+                message = "initiators added"
+                hostdetail = self.conn.provisioning.get_host(host_id=self.module.params['host_id'])
+            except Exception:
+                message = "unable to add initiators, check the list and retry"
 
-def delete_host(apiconnection, module):
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-    # Compile a list of existing hosts.
-    hostlist = dellemc.get_host_list()
-    # Check if Host Name already exists.
-    if module.params['host_id'] in hostlist:
-        mvlist = dellemc.get_masking_views_by_host(\
-                initiatorgroup_name=module.params['host_id'])
-        if len(mvlist) < 1:
-            dellemc.delete_host(host_id=module.params['host_id'])
-            changed = True
-            message = "Host Deleted"
+        facts = ({'message': message})
+        result = {'state': 'info', 'changed': changed, 'host_detail': hostdetail}
+        self.module.exit_json(ansible_facts={'host_detail': facts}, **result)
+
+    def delete_host(self):
+        changed = False
+        # Compile a list of existing hosts.
+        hostlist = self.conn.provisioning.get_host_list()
+        # Check if Host Name already exists.
+        if self.module.params['host_id'] in hostlist:
+            mvlist = self.conn.provisioning.get_masking_views_by_host(\
+                    initiatorgroup_name=self.module.params['host_id'])
+            if len(mvlist) < 1:
+                self.conn.provisioning.delete_host(host_id=self.module.params['host_id'])
+                changed = True
+                message = "Host Deleted"
+            else:
+                message = self.module.params['host_id'] + " host is part of a Masking " \
+                                                    "view"
         else:
-            message = module.params['host_id'] + " host is part of a Masking " \
-                                                "view"
-    else:
-        message = "Specified host does not exist"
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'host_detail': facts}, **result)
+            message = "Specified host does not exist"
+        facts = ({'message': message})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'host_detail': facts}, **result)
+
+    def apply_module(self):
+        if self.module.params['state'] == "present":
+            self.create_or_modify_host()
+        elif self.module.params['state'] == "absent":
+            self.delete_host()
 
 
 def main():
-    argument_spec = dellemc_pmax_argument_spec()
-    argument_spec.update(dict(
-        host_id=dict(type='str', required=True),
-        initiator_list=dict(type='list', required=True),
-        state=dict(type='str', required=True, choices=['present', 'absent']),
-        wwn_state=dict(type='str', required=True, choices=['present', 'absent'])
-    )
-    )
-    module = AnsibleModule(argument_spec=argument_spec)
-    # Setup connection to API
-    conn = pmaxapi(module)
-    if module.params['state'] == "present":
-        create_or_modify_host(apiconnection=conn, module=module)
-    elif module.params['state'] == "absent":
-        delete_host(apiconnection=conn, module=module)
+
+    d = DellEmcHost()
+    d.apply_module()
 
 
 if __name__ == '__main__':
