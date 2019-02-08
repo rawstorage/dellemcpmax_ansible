@@ -4,6 +4,7 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -213,43 +214,50 @@ class DellEmcHost(object):
     def create_or_modify_host(self):
         changed = False
         hostlist = self.conn.provisioning.get_host_list()
-        hostdetail ={}
+        hostdetail = {}
         message = ""
 
         if self.module.params['host_id'] not in hostlist:
             try:
-                self.conn.provisioning.create_host(host_name=self.module.params['host_id'],
-                                    initiator_list=self.module.params['initiator_list'])
+                self.conn.provisioning.create_host(
+                    host_name=self.module.params['host_id'],
+                    initiator_list=self.module.params['initiator_list'])
                 message = "Host Sucessfully Created"
                 changed = True
-                hostdetail = self.conn.provisioning.get_host(host_id=self.module.params['host_id'])
+                hostdetail = self.conn.provisioning.get_host(
+                    host_id=self.module.params['host_id'])
             except Exception:
-                message= "unable to create host with the specified parameters, " \
-                         "check hostname is unique and wwns are not in use"
+                message = "unable to create host with the specified parameters, " \
+                          "check hostname is unique and wwns are not in use"
 
         elif self.module.params['wwn_state'] == 'absent':
             try:
-                self.conn.provisioning.modify_host(host_id=self.module.params['host_id'],
-                                    remove_init_list=self.module.params['initiator_list'])
+                self.conn.provisioning.modify_host(
+                    host_id=self.module.params['host_id'],
+                    remove_init_list=self.module.params['initiator_list'])
                 changed = True
                 message = "Host initiators removed"
-                hostdetail = self.conn.provisioning.get_host(host_id=self.module.params['host_id'])
+                hostdetail = self.conn.provisioning.get_host(
+                    host_id=self.module.params['host_id'])
             except Exception:
                 message = "unable to remove initiators, please check the " \
                           "supplied list"
 
         elif self.module.params['wwn_state'] == 'present':
             try:
-                self.conn.provisioning.modify_host(host_id=self.module.params['host_id'],
-                                    add_init_list=self.module.params['initiator_list'])
+                self.conn.provisioning.modify_host(
+                    host_id=self.module.params['host_id'],
+                    add_init_list=self.module.params['initiator_list'])
                 changed = True
                 message = "initiators added"
-                hostdetail = self.conn.provisioning.get_host(host_id=self.module.params['host_id'])
+                hostdetail = self.conn.provisioning.get_host(
+                    host_id=self.module.params['host_id'])
             except Exception:
                 message = "unable to add initiators, check the list and retry"
 
         facts = ({'message': message})
-        result = {'state': 'info', 'changed': changed, 'host_detail': hostdetail}
+        result = {'state': 'info', 'changed': changed,
+                  'host_detail': hostdetail}
         self.module.exit_json(ansible_facts={'host_detail': facts}, **result)
 
     def delete_host(self):
@@ -258,15 +266,17 @@ class DellEmcHost(object):
         hostlist = self.conn.provisioning.get_host_list()
         # Check if Host Name already exists.
         if self.module.params['host_id'] in hostlist:
-            mvlist = self.conn.provisioning.get_masking_views_by_host(\
-                    initiatorgroup_name=self.module.params['host_id'])
+            mvlist = self.conn.provisioning.get_masking_views_by_host( \
+                initiatorgroup_name=self.module.params['host_id'])
             if len(mvlist) < 1:
-                self.conn.provisioning.delete_host(host_id=self.module.params['host_id'])
+                self.conn.provisioning.delete_host(
+                    host_id=self.module.params['host_id'])
                 changed = True
                 message = "Host Deleted"
             else:
-                message = self.module.params['host_id'] + " host is part of a Masking " \
-                                                    "view"
+                message = self.module.params[
+                              'host_id'] + " host is part of a Masking " \
+                                           "view"
         else:
             message = "Specified host does not exist"
         facts = ({'message': message})
@@ -281,7 +291,6 @@ class DellEmcHost(object):
 
 
 def main():
-
     d = DellEmcHost()
     d.apply_module()
 
