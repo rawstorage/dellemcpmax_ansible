@@ -243,7 +243,7 @@ def main():
             changed = True
             message = "Snapshot Created"
         else:
-            message =" Storage Group not found"
+            message = " Storage Group not found"
     else:
         snaplist = rep.get_storagegroup_snapshot_list(module.params['sgname'])
         if module.params['sgname'] in sglist and module.params['snapshotname'] \
