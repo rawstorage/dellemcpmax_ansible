@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Copyright: (C) 2018, DellEMC
+# Copyright: (C) 2019, DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -92,7 +92,7 @@ EXAMPLES = '''
         action: "Suspend"
 '''
 RETURN = '''
-dellemc_pmax_manage_srdf:
+dellemc_pmax_srdf:
     description: Information about storage group created
     returned: success
     type: dict
@@ -135,42 +135,42 @@ def main():
     argument_spec.update(dict(
             sgname=dict(type='str', required=True),
             action=dict(type='str',choices=['Establish','Suspend','Split',
-                                            'Failover','Failback'],
-                        required=True)
+                                            'Failover','Failback'],required=True)
         )
     )
     # Make REST call to Unisphere Server and execute SRDF control operation
-
     module = AnsibleModule(argument_spec=argument_spec)
+
     # Setup connection to API and import replicaiton functions.
     conn = pmaxapi(module)
-
-    rep=conn.replication
-
+    rep = conn.replication
+    rdf_state = "Unknown"
+    message = "No Changes"
     rdf_sglist = rep.get_storage_group_rep_list(has_srdf=True)
-
     if module.params['sgname'] in rdf_sglist:
         rdfg_list = rep.get_storagegroup_srdfg_list(module.params['sgname'])
         if len(rdfg_list)<=1:
             rdfg = rdfg_list[0]
-            rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
-            , action=module.params['action'], rdfg=rdfg)
-            changed = True
+            try:
+                rep.modify_storagegroup_srdf(storagegroup_id=module.params['sgname']
+                    ,action=module.params['action'], rdfg=rdfg)
+                changed = True
+                rdf_state = rep.get_storagegroup_srdf_details(
+                    storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
+            except Exception:
+                message = "A problem occured with the SRDF operation, " \
+                          "please verify the storage group is not already in " \
+                          "the requested state"
         else:
-            module.fail_json(changed=changed,
-                msg='Specified Storage Group has mult-site RDF Protection '
-                    'Ansible Module currently supports single Site SRDF '
-                    'please use Unishpere for PowerMax UI for SRDF group '
-                    'managment')
-
+            message = 'Specified Storage Group has mult-site RDF Protection ' \
+                      'Ansible Module currently supports single Site SRDF ' \
+                      'please use Unishpere for PowerMax UI for SRDF group ' \
+                      'managment'
     else:
+        message = 'Specified Storage Group is not SRDF Protected'
 
-        module.fail_json(msg='Specified Storage Group is not currently SRDF '
-                             'Protected')
-    rdfstate=rep.get_storagegroup_srdf_details(
-        storagegroup_id=module.params['sgname'], rdfg_num=rdfg)
-    facts = rdfstate
-    result = {'state': 'info', 'changed': changed}
+    facts = rdf_state
+    result = ({'state': 'info', 'changed': changed, 'message': message})
     module.exit_json(ansible_facts={'rdfstate': facts}, **result)
 
 

@@ -1,22 +1,23 @@
-- name: "Delete Host"
+- name: "SRDF Operations Playbook"
   connection: local
   hosts: localhost
   vars:
     array_id: 000197600156
     password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.123.1"
+    unispherehost: "192.168.1.123"
     universion: "90"
     user: smc
     verifycert: false
 
   tasks:
-  - name: Delete Host2
-    dellemc_pmax_deletehost:
+    - name: "Establish SRDF Session"
+      dellemc_pmax_srdf:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
+        array_id: "{{array_id}}"
         user: "{{user}}"
         password: "{{password}}"
-        array_id: "{{array_id}}"
-        host_id: "AnsibleHost1"
+        verifycert: "{{verifycert}}"
+        sgname: SRDF_TEST
+        action: Establish
+    - debug: var=rdfstate

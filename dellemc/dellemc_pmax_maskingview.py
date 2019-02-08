@@ -97,39 +97,84 @@ EXAMPLES = '''
         portgroup_id: "Ansible_PG"
         host_or_cluster : "AnsibleCluster"
         maskingview_name: "Ansible_MV"
+        state: present
 '''
 RETURN = r'''
 '''
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
-def main():
-    changed = False
-    argument_spec = dellemc_pmax_argument_spec()
-    argument_spec.update(dict(
+
+class DellEmcPmaxMaskingview(object):
+
+    def __init__(self):
+        self.argument_spec = dellemc_pmax_argument_spec()
+        self.argument_spec.update(dict(
             sgname=dict(type='str', required=True),
             host_or_cluster=dict(type='str', required=True),
             portgroup_id=dict(type='str', required=True),
-            maskingview_name=dict(type='str', required=True)
+            maskingview_name=dict(type='str', required=True),
+            state=dict(type='str', choices=['present', 'absent'],
+                       required=True)
         )
-    )
-    module = AnsibleModule(argument_spec=argument_spec)
-    # Create Connection to Unisphere Server to Make REST calls
-    conn = pmaxapi(module)
-    dellemc = conn.provisioning
-    # Make REST call to Unisphere Server and execute create masking view
-    mvlist = dellemc.get_masking_view_list()
-    # Check if Storage Group already exists
-    if module.params['maskingview_name'] not in mvlist:
-        dellemc.create_masking_view_existing_components(
-            port_group_name=module.params['portgroup_id'],
-            masking_view_name=module.params['maskingview_name'],
-            host_name=module.params['host_or_cluster'],
-            storage_group_name=module.params['sgname'])
-        changed = True
-    else:
-        module.fail_json(msg='Masking View Already Exists')
-    module.exit_json(changed=changed)
+        )
+
+        self.module = AnsibleModule(argument_spec=self.argument_spec)
+
+        self.conn = pmaxapi(self.module)
+
+    def create_maskingview(self):
+        changed = False
+        mv_details = "Nothing to display"
+        # Check Masking
+        try:
+            self.conn.provisioning.create_masking_view_existing_components(
+                        port_group_name=self.module.params['portgroup_id'],
+                        masking_view_name=self.module.params['maskingview_name'],
+                        host_name=self.module.params['host_or_cluster'],
+                        storage_group_name=self.module.params['sgname'])
+            changed = True
+            message = "Masking view successfully created"
+            mv_details = self.conn.provisioning.get_masking_view(
+                masking_view_name=self.module.params[
+                                                      'maskingview_name'])
+
+        except Exception:
+            message = "Error Creating Masking view rerun playbook with -vvv to " \
+                      "check error message"
+        facts = ({'message': message,
+                  'mv_details': mv_details})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'maskingview_detail': facts},
+                          **result)
+
+    def delete_maskingview(self):
+        changed = False
+        mv_details = ""
+        message = ""
+        try:
+            self.conn.provisioning.delete_masking_view(
+                maskingview_name=self.module.params['maskingview_name'])
+            changed = True
+        except Exception:
+            message = "Unable to Delete the specified Masking view"
+        facts = ({'message': message,
+                  'mv_details': mv_details})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'maskingview_detail': facts},
+                          **result)
+
+    def apply_module(self):
+        if self.module.params['state'] == "present":
+            self.create_maskingview()
+        elif self.module.params['state'] == 'absent':
+            self.delete_maskingview()
+
+
+def main():
+
+    d = DellEmcPmaxMaskingview()
+    d.apply_module()
 
 
 if __name__ == '__main__':

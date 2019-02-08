@@ -1,0 +1,64 @@
+- name: "Create a New Host"
+  connection: local
+  hosts: localhost
+  vars:
+    array_id: 000197600156
+    password: smc
+    unispherehost: "192.168.1.123"
+    universion: "90"
+    user: smc
+    verifycert: false
+
+  tasks:
+  - name: Create Custer
+    dellemc_pmax_cluster:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        cluster_name: AnsibleCluster
+        host_list:
+        - AnsibleHost2
+        - AnsibleHost1
+        state: Create
+        host_state: in_cluster
+  - name: Add host to Custer
+    dellemc_pmax_cluster:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        cluster_name: AnsibleCluster
+        host_list:
+        - AnsibleHost3
+        state: present
+        host_state: in_cluster
+- name: Remove Host from Custer
+    dellemc_pmax_cluster:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        cluster_name: AnsibleCluster
+        host_list:
+        - AnsibleHost3
+        state: present
+        host_state: not_in_cluster
+  - name: Delete Custer
+    dellemc_pmax_cluster:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        cluster_name: AnsibleCluster
+        host_list:
+        state: absent
+        host_state: in_cluster

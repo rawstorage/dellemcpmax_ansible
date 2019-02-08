@@ -2,22 +2,28 @@
   hosts: localhost
   connection: local
   vars:
-        unispherehost: '192.168.123.1'
+        unispherehost: '192.168.1.123'
         universion: "90"
         verifycert: False
         user: 'smc'
         password: 'smc'
-        sgname: 'Ansible_empty_SG'
         array_id: '000197600156'
   tasks:
-  - name: Create New Storage Group and add data volumes
-    dellemc_pmax_expandlun:
+  - name: Modify Volume Sizes and Labels
+    dellemc_pmax_volume:
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         verifycert: "{{verifycert}}"
         user: "{{user}}"
         password: "{{password}}"
         array_id: "{{array_id}}"
-        newsizegb: 3
-        device_id: "0013A"
-  - debug: var=vol_detail
+        sgname: 'Ansible_SG'
+        in_sg: "present"
+        volumes:
+          - device_id: "000BB"
+            cap_gb: 5
+            vol_name: "LABEL"
+          - device_id: "000BA"
+            cap_gb: 5
+            vol_name: "LABEL"
+  - debug: var=storagegroup_detail
