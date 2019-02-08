@@ -145,106 +145,110 @@ from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
-def create_or_modify_hostgroup(apiconnection, module):
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-    message = "The Following hosts don't exist "
-    # Check for each host in the host list that it exists, otherwise fail
-    # module.
+class DellEmcPmaxCluster(object):
 
-    hostgrouplist = dellemc.get_hostgroup_list()
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-    message = ""
+    def __init__(self):
+        self.argument_spec = dellemc_pmax_argument_spec()
+        self.argument_spec.update(dict(
+            cluster_name=dict(type='str', required=True),
+            host_list=dict(type='list', required=True),
+            state=dict(type='str', required=True,
+                       choices=['present', 'absent']),
+            host_state=dict(type='str', required=True, choices=['in_cluster',
+                                                                'not_in_cluster'])
+        )
+        )
 
-    if module.params['cluster_name'] not in hostgrouplist:
-        try:
-            dellemc.create_hostgroup(hostgroup_id=module.params[
-                'cluster_name'], host_list=module.params['host_list'])
-            changed = True
-        except Exception:
-            message = "Unable to create cluster"
+        self.module = AnsibleModule(argument_spec=self.argument_spec)
 
-    elif module.params['cluster_name'] in hostgrouplist and module.params[
-        'host_state'] == "in_cluster":
-        try:
-            dellemc.modify_hostgroup(hostgroup_id=module.params['cluster_name'],
-                                     add_host_list=module.params['host_list'])
-            changed = True
-        except Exception:
-            message = "Unable to add hosts Cluster"
+        self.conn = pmaxapi(self.module)
 
-    elif module.params['cluster_name'] in hostgrouplist and module.params[
-            'host_state'] == "not_in_cluster":
-        try:
-            dellemc.modify_hostgroup(
-                hostgroup_id=module.params['cluster_name'],
-                remove_host_list=module.params['host_list'])
-            changed = True
-        except Exception:
-            message = "Problem removing host from cluster"
-    else:
-        message = "Nothing Happened"
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'host_detail': facts}, **result)
+    def create_or_modify_hostgroup(self):
+        changed = False
+        message = "The Following hosts don't exist "
+        # Check for each host in the host list that it exists, otherwise fail
+        # module.
 
+        hostgrouplist = self.conn.provisioning.get_hostgroup_list()
+        changed = False
+        # Create a New Host
+        message = ""
 
-def delete_hostgroup(apiconnection, module):
-    changed = False
-    # Create a New Host
-    conn = apiconnection
-    dellemc = conn.provisioning
-    hostlist = dellemc.get_host_list()
-    # Compile a list of existing hosts.
-    hostgrouplist = dellemc.get_hostgroup_list()
-    # Check if Host Name already exists.
-    if module.params['cluster_name'] in hostgrouplist:
-        mvlist = dellemc.get_masking_views_by_host(\
-                initiatorgroup_name=module.params['cluster_name'])
-        if len(mvlist) < 1:
-            dellemc.delete_hostgroup(hostgroup_id=module.params['cluster_name'])
-            changed = True
-            message = "Cluster Deleted"
+        if self.module.params['cluster_name'] not in hostgrouplist:
+            try:
+                self.conn.provisioning.create_hostgroup(hostgroup_id=self.module.params[
+                    'cluster_name'], host_list=self.module.params['host_list'])
+                changed = True
+            except Exception:
+                message = "Unable to create cluster"
+
+        elif self.module.params['cluster_name'] in hostgrouplist and self.module.params[
+            'host_state'] == "in_cluster":
+            try:
+                self.conn.provisioning.modify_hostgroup(hostgroup_id=self.module.params['cluster_name'],
+                                         add_host_list=self.module.params['host_list'])
+                changed = True
+            except Exception:
+                message = "Unable to add hosts Cluster"
+
+        elif self.module.params['cluster_name'] in hostgrouplist and self.module.params[
+                'host_state'] == "not_in_cluster":
+            try:
+                self.conn.provisioning.modify_hostgroup(
+                    hostgroup_id=self.module.params['cluster_name'],
+                    remove_host_list=self.module.params['host_list'])
+                changed = True
+            except Exception:
+                message = "Problem removing host from cluster"
         else:
-            message = module.params['host_id'] + " host is part of a Masking " \
-                                                "view"
-    # Additional Check, if user deleted all hosts from hostgroup,
-    # the hostgroup becomes a host, if this is the case delete should still
-    # be successful
-    elif module.params['cluster_name'] in hostlist:
-        hostdetails = dellemc.get_host(module.params['cluster_name'])
-        if (hostdetails["num_of_initiators"]) < 1:
-            dellemc.delete_host(host_id=module.params['cluster_name'])
-        message = "Delete Successful"
-    else:
-        message = "Specified hostgroup does not exist"
-    facts = ({'message': message})
-    result = {'state': 'info', 'changed': changed}
-    module.exit_json(ansible_facts={'cluster_detail': facts}, **result)
+            message = "Nothing Happened"
+        facts = ({'message': message})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'host_detail': facts}, **result)
+
+    def delete_hostgroup(self):
+        changed = False
+        # Create a New Host
+        hostlist = self.conn.provisioning.get_host_list()
+        # Compile a list of existing hosts.
+        hostgrouplist = self.conn.provisioning.get_hostgroup_list()
+        # Check if Host Name already exists.
+        if self.module.params['cluster_name'] in hostgrouplist:
+            mvlist = self.conn.provisioning.get_masking_views_by_host(\
+                    initiatorgroup_name=self.module.params['cluster_name'])
+            if len(mvlist) < 1:
+                self.conn.provisioning.delete_hostgroup(hostgroup_id=self.module.params['cluster_name'])
+                changed = True
+                message = "Cluster Deleted"
+            else:
+                message = self.module.params['host_id'] + " host is part of a Masking " \
+                                                    "view"
+        # Additional Check, if user deleted all hosts from hostgroup,
+        # the hostgroup becomes a host, if this is the case delete should still
+        # be successful
+        elif self.module.params['cluster_name'] in hostlist:
+            hostdetails = self.conn.provisioning.get_host(self.module.params['cluster_name'])
+            if (hostdetails["num_of_initiators"]) < 1:
+                self.conn.provisioning.delete_host(host_id=self.module.params['cluster_name'])
+            message = "Delete Successful"
+        else:
+            message = "Specified hostgroup does not exist"
+        facts = ({'message': message})
+        result = {'state': 'info', 'changed': changed}
+        self.module.exit_json(ansible_facts={'cluster_detail': facts},
+                              **result)
+
+    def apply_module(self):
+        if self.module.params['state'] == "present":
+            self.create_or_modify_hostgroup()
+        elif self.module.params['state'] == "absent":
+            self.delete_hostgroup()
 
 
 def main():
-    argument_spec = dellemc_pmax_argument_spec()
-    argument_spec.update(dict(
-        cluster_name=dict(type='str', required=True),
-        host_list=dict(type='list', required=True),
-        state=dict(type='str', required=True, choices=['present', 'absent']),
-        host_state=dict(type='str', required=True, choices=['in_cluster',
-                                                            'not_in_cluster'])
-    )
-    )
-    module = AnsibleModule(argument_spec=argument_spec)
-    # Setup connection to API
-    conn = pmaxapi(module)
-    if module.params['state'] == "present":
-        create_or_modify_hostgroup(apiconnection=conn, module=module)
-    elif module.params['state'] == "absent":
-        delete_hostgroup(apiconnection=conn, module=module)
+
+    d = DellEmcPmaxCluster()
+    d.apply_module()
 
 
 if __name__ == '__main__':
