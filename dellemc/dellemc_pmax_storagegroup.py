@@ -79,8 +79,8 @@ options:
   resize:
     description:
       - "setting this parameter will attempt to resize volumes in the 
-      supplied lunlist, volumes with matching label will be resized 
-      providing device size in larger than current"
+      supplied lunlist, volume requests in the lun list with matching label 
+      will be resized providing device size in larger than current"
     type: bool
     required: false  
 
@@ -296,6 +296,18 @@ class DellEmcStorageGroup(object):
             playbook_lunlist = self.module.params["luns"]
         else:
             playbook_lunlist = []
+        # Make sure there Volume Names are Unique in LUN List, if label is
+        # repeated on multiple requests, module will exit.
+        names = []
+        for lun_request_name in playbook_lunlist:
+            if lun_request_name['vol_name'] in names:
+                self.module.exit_json(msg="Check format of volume request "
+                                          "list, vol_name should be unique "
+                                          "per "
+                                          "request")
+            else:
+                names.append(lun_request_name['vol_name'])
+
         if self.module.params['sgname'] not in sglist:
             self.conn.provisioning.create_storage_group(
                 srp_id="SRP_1",
@@ -391,14 +403,15 @@ class DellEmcStorageGroup(object):
                       self.conn.provisioning.get_storage_group(
                           storage_group_name=self.module.params['sgname']),
                   'sg_volumes': lunsummary,
-                  'message': "REsize attempted, volumess shown below"}) # TODO
+                  'message': "Resize operation attempted, volumes state shown"
+                             "below"})
         # Change Message
         result = {'state': 'info', 'changed': changed}
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
                               **result)
 
     def delete_sg(self):
-        # changed = False
+        changed = False
         # Compile a list of existing storage groups.
         sglist = self.conn.provisioning.get_storage_group_list()
         message = "Resource already in the requested state"
