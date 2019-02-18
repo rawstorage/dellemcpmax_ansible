@@ -404,7 +404,7 @@ class DellEmcStorageGroup(object):
                           storage_group_name=self.module.params['sgname']),
                   'sg_volumes': lunsummary,
                   'message': "Resize operation attempted, volumes state shown"
-                             "below"})
+                             " below"})
         # Change Message
         result = {'state': 'info', 'changed': changed}
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
@@ -446,15 +446,14 @@ class DellEmcStorageGroup(object):
                               **result)
 
     def apply_module(self):
-        if self.module.params['state'] == "present" and self.module.params[
+
+        if self.module.params['state'] == 'absent':
+            self.delete_sg()
+        elif self.module.params['state'] == "present" and self.module.params[
                 'resize']:
             self.resize_sg_vols()
-
         elif self.module.params['state'] == "present":
             self.create_sg()
-
-        elif self.module.params['state'] == 'absent':
-            self.delete_sg()
 
 
 def main():
