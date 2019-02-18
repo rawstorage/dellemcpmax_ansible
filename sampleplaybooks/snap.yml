@@ -1,0 +1,19 @@
+- name: Create SnapVX SnapShot of existing Storage Group
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars.yml
+  tasks:
+  - name: Create SnapShot
+    dellemc_pmax_snap:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        sgname: 'Ansible_SG'
+        array_id: '000197600156'
+        snapshotname: 'Ansible_SnapShot_1'
+        time_to_live_hrs: 1
+        action: "create"
+  - debug: var=snap_detail

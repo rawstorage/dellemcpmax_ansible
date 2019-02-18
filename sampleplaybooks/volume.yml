@@ -1,13 +1,8 @@
 - name: Provision Storage For DB Cluster
   hosts: localhost
   connection: local
-  vars:
-        unispherehost: '192.168.1.123'
-        universion: "90"
-        verifycert: False
-        user: 'smc'
-        password: 'smc'
-        array_id: '000197600156'
+  vars_files:
+    - vars.yml
   tasks:
   - name: Modify Volume Sizes and Labels
     dellemc_pmax_volume:
