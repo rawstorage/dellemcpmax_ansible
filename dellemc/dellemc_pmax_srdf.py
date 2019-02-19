@@ -70,14 +70,8 @@ EXAMPLES = '''
 - name: "Provision Storage For DB Cluster"
   connection: local
   hosts: localhost
-  vars:
-    array_id: 000197600156
-    password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.1.123"
-    universion: "90"
-    user: smc
-    verifycert: false
+  vars_files:
+    - vars.yml
 
   tasks:
     - name: "Base Values for Task Add module Specific paramters"

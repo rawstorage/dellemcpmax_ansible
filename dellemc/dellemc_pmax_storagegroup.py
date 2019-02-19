@@ -92,52 +92,41 @@ requirements:
 '''
 EXAMPLES = '''
 ---
-- name: "Test Storage Group Operations"
-  connection: local
+- name: "Provision a new storage group"
   hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
   vars:
-    array_id: "000197600156"
-    password: "smc"
-    sgname: "Ansible_SG1"
-    unispherehost: "192.168.1.1"
-    universion: "90"
-    user: "smc"
-    verifycert: false
-    lun_list:
+    lun_request:
+      # Each item will be treated as a request for volumes of the same size
+      # volume name must be unique per request, all sizes are GB values.  A
+      # request can have multiple volumes with the same name, however module
+      # will not run if it detects two requests with same name.  This is self
+      # imposed restriction to make idempotence easier for change tracking.
       - num_vols: 2
-        cap_gb: 1
+        cap_gb: 2
         vol_name: "DATA"
-      - num_vols: 2
-        cap_gb: 1
+      - num_vols: 3
+        cap_gb: 2
         vol_name: "REDO"
-
   tasks:
     - name: "Create New Storage Group volumes"
       dellemc_pmax_storagegroup:
         array_id: "{{array_id}}"
         password: "{{password}}"
-        sgname: "{{sgname}}"
-        slo: "Diamond"
         unispherehost: "{{unispherehost}}"
         universion: "{{universion}}"
         user: "{{user}}"
         verifycert: "{{verifycert}}"
-        luns: "{{lun_list}}"
-        state: present
-    - debug: var=storagegroup_detail    
-
-    - name: "Delete Existing Storage Group"
-      dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        sgname: "{{sgname}}"
+        sgname: "Ansible_SG"
         slo: "Diamond"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
-        state: "absent"
+        luns: "{{lun_request}}"
+        state: 'present'
+        resize: True
     - debug: var=storagegroup_detail
+
 '''
 RETURN = r'''
 ok: [localhost] => {

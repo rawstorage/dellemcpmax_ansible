@@ -32,17 +32,6 @@ options:
     description:
       - "Integer 12 Digit Serial Number of PowerMAX or VMAX array."
     required: true
-  sgname:
-    description:
-      - "Storage Group name 32 Characters no special characters other than
-      underscore."
-    required: true
-  slo:
-    description:
-      - "Service Level for the storage group, Supported on VMAX3 and All Flash
-      and PowerMAX NVMe Arrays running PowerMAX OS 5978 and above.  Default is
-      set to Diamond, but user can override this by setting a different value."
-    required: false
   unispherehost:
     description:
       - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
@@ -63,26 +52,27 @@ options:
   password:
     description:
       - "password for Unisphere user"
-  luns:
+  parent_sg:
     description:
-      - "List describing volumes to be added or list of luns expected to be 
-      in the storage group. list should have a unique combination of 
-      num_vols, cap_gb, vol_name. See examples for usage"
-    type: list
-    required: false
-    Default: empty list which will try to create storage group with no volumes 
-  state:
-    description:
-      - "Valid values are present, absent, or current"
+      - "name of Parent SG"
     type: string
     required: true
-  resize:
+  child_sg_list:
     description:
-      - "setting this parameter will attempt to resize volumes in the 
-      supplied lunlist, volume requests in the lun list with matching label 
-      will be resized providing device size in larger than current"
-    type: bool
-    required: false  
+      - "List of Child Stroage groups to be added or removed from Parent"
+    type: list
+    required: true
+  parent_state:
+    description:
+      - "Present or Absent, Absent will delete the parent storage group"
+    type: string
+    required: true
+  child_state:
+    description:
+      - "Present or Absent, Absent will attempt to remove children in the list 
+      from the parent storage group"
+    type: string
+    required: true
 
 requirements:
   - Ansible
@@ -91,115 +81,56 @@ requirements:
   - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
+- name: "Provision a new storage group"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
 
+  tasks:
+    - name: "Create Cascaded Storage Group Relationship"
+      dellemc_pmax_cascadedsg:
+        array_id: "{{array_id}}"
+        password: "{{password}}"
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        user: "{{user}}"
+        verifycert: "{{verifycert}}"
+        parent_sg: ansible_parent
+        child_sg_list:
+        - ansible_child1
+        - ansible_child2
+        parent_state: present
+        child_state: present
+    - debug: var=storagegroup_detail
 '''
 RETURN = r'''
 ok: [localhost] => {
     "storagegroup_detail": {
-        "message": "no changes made",
-        "sg_volumes": [
-            {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00178",
-                "wwn": "60000970000197600156533030313738"
-            },
-            {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00179",
-                "wwn": "60000970000197600156533030313739"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017A",
-                "wwn": "60000970000197600156533030313741"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017B",
-                "wwn": "60000970000197600156533030313742"
-            }
-        ],
-        "storagegroup_detail": {
-            "VPSaved": "100.0%",
-            "base_slo_name": "Diamond",
-            "cap_gb": 4.01,
-            "compression": true,
-            "device_emulation": "FBA",
-            "num_of_child_sgs": 0,
+        "message": "Changes Successful",
+        "storage_group_details": {
+            "VPSaved": "N/A",
+            "cap_gb": 0.0,
+            "child_storage_group": [
+                "ansible_child1",
+                "ansible_child2"
+            ],
+            "compression": false,
+            "device_emulation": "N/A",
+            "num_of_child_sgs": 2,
             "num_of_masking_views": 0,
             "num_of_parent_sgs": 0,
             "num_of_snapshots": 0,
-            "num_of_vols": 4,
-            "service_level": "Diamond",
-            "slo": "Diamond",
-            "slo_compliance": "STABLE",
-            "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG",
-            "type": "Standalone",
-            "unprotected": true,
-            "vp_saved_percent": 100.0
-        },
-        "storagegroup_name": "Ansible_SG"
+            "num_of_vols": 0,
+            "slo": "NONE",
+            "slo_compliance": "NONE",
+            "storageGroupId": "ansible_parent",
+            "type": "Parent",
+            "unprotected": true
+        }
     }
 }
-ok: [localhost] => {
-    "storagegroup_detail": {
-        "message": "no changes made",
-        "sg_volumes": [
-            {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00178",
-                "wwn": "60000970000197600156533030313738"
-            },
-            {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00179",
-                "wwn": "60000970000197600156533030313739"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017A",
-                "wwn": "60000970000197600156533030313741"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017B",
-                "wwn": "60000970000197600156533030313742"
-            }
-        ],
-        "storagegroup_detail": {
-            "VPSaved": "100.0%",
-            "base_slo_name": "Diamond",
-            "cap_gb": 4.01,
-            "compression": true,
-            "device_emulation": "FBA",
-            "num_of_child_sgs": 0,
-            "num_of_masking_views": 0,
-            "num_of_parent_sgs": 0,
-            "num_of_snapshots": 0,
-            "num_of_vols": 4,
-            "service_level": "Diamond",
-            "slo": "Diamond",
-            "slo_compliance": "STABLE",
-            "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG",
-            "type": "Standalone",
-            "unprotected": true,
-            "vp_saved_percent": 100.0
-        },
-        "storagegroup_name": "Ansible_SG"
-    }
-}
-
-
 '''
 
 from ansible.module_utils.basic import AnsibleModule
@@ -214,8 +145,8 @@ class DellEmcCascadeStorageGroup(object):
             child_sg_list=dict(type='list', required=True),
             parent_state=dict(type='str', choices=['present', 'absent'],
                        required=True),
-            child_state=dict(type='str', choices=['in_parent',
-                                                  'not_in_parent'],
+            child_state=dict(type='str', choices=['present',
+                                                  'absent'],
                        required=True)
         )
         )
@@ -326,10 +257,10 @@ class DellEmcCascadeStorageGroup(object):
 
     def apply_module(self):
         if self.module.params["parent_state"] == 'present' and \
-                self.module.params["child_state"] == 'in_parent':
+                self.module.params["child_state"] == 'present':
             self.create_cascaded()
         elif self.module.params["parent_state"] == 'present' and \
-                self.module.params["child_state"] == 'not_in_parent':
+                self.module.params["child_state"] == 'absent':
             self.remove_child_sg()
         elif self.module.params["parent_state"] == 'absent':
             self.delete_sg()

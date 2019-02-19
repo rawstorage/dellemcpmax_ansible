@@ -19,5 +19,5 @@
         - ansible_child1
         - ansible_child2
         parent_state: present
-        child_state: in_parent
+        child_state: present
     - debug: var=storagegroup_detail

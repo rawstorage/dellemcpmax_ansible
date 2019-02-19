@@ -63,13 +63,9 @@ EXAMPLES = '''
 ---
 - name: "Gather all facts except for the volumes"
   dellemc_pmax_gather_facts:
-    unispherehost: "{{unispherehost}}"
-    universion: "{{universion}}"
-    verifycert: "{{verifycert}}"
-    user: "{{user}}"
-    password: "{{password}}"
-    array_id: "{{array_id}}"
-    gather_subset: "!volumes"
+  vars_files:
+    - vars.yml
+    
 - debug: var=dellemc_pmax_facts
 
 - name: "Gather only storage_groups and masking_views facts"

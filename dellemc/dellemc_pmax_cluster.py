@@ -74,14 +74,8 @@ EXAMPLES = '''
 - name: "Create Clusters"
   connection: local
   hosts: localhost
-  vars:
-    array_id: 000197600156
-    password: smc
-    unispherehost: "192.168.1.1"
-    universion: "90"
-    user: smc
-    verifycert: false
-
+  vars_files:
+    - vars.yml
   tasks:
   - name: Create Cluster
     dellemc_pmax_cluster:
