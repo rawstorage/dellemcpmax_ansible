@@ -28,6 +28,8 @@ copy dellemc.py file in module_utils to
 
 /usr/lib/python2.7/dist-packages/ansible/module_utils
 
+If you have installed Unisphere to use a non-default port you can change in this file line 29
+
 Playbooks can then be run from any working directory with ansible-playbook commands
 
 Before running any dellpmax modules as part of your playbooks, you will need to install additional python modules.
