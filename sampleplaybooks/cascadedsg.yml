@@ -1,0 +1,23 @@
+- name: "Provision a new storage group"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: "Create New Storage Group volumes"
+      dellemc_pmax_cascadedsg:
+        array_id: "{{array_id}}"
+        password: "{{password}}"
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        user: "{{user}}"
+        verifycert: "{{verifycert}}"
+        parent_sg: ansible_parent
+        child_sg_list:
+        - ansible_child1
+        - ansible_child2
+        parent_state: present
+        child_state: in_parent
+    - debug: var=storagegroup_detail
