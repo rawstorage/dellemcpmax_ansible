@@ -79,12 +79,8 @@ EXAMPLES = '''
 - name: Create SnapVX SnapShot of existing Storage Group
   hosts: localhost
   connection: local
-  vars:
-        unispherehost: '192.168.1.123'
-        universion: "90"
-        verifycert: False
-        user: 'smc'
-        password: 'smc'
+  vars_files:
+    - vars.yml
 
   tasks:
   - name: Create SnapShot

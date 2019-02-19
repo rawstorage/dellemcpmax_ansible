@@ -75,15 +75,8 @@ EXAMPLES = '''
 - name: "Create a Masking View from existing components"
   connection: local
   hosts: localhost
-  vars:
-    array_id: 000197600156
-    password: smc
-    sgname: Ansible_SG
-    unispherehost: "192.168.1.123"
-    universion: "90"
-    user: smc
-    verifycert: false
-
+  vars_files:
+    - vars.yml
   tasks:
     - name: "Create Masking View for Host Access to storage group volumes"
       dellemc_pmax_createmaskingview:
