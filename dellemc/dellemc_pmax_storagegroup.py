@@ -301,6 +301,9 @@ class DellEmcStorageGroup(object):
             lunsummary.append(sglun)
 
         current_config = self.unique_and_count(lunsummary)
+        for i in current_config:
+            i['num_vols']=i.pop('count')
+
 
         return current_config
 
