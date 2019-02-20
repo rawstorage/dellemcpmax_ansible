@@ -5,6 +5,7 @@
 # or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+from itertools import groupby
 
 __metaclass__ = type
 
@@ -247,7 +248,7 @@ class DellEmcStorageGroup(object):
             sgname=dict(type='str', required=True),
             slo=dict(type='str', required=False),
             luns=dict(type='list', required=False),
-            state=dict(type='str', choices=['present', 'absent'],
+            state=dict(type='str', choices=['present', 'absent','current'],
                        required=True),
             resize=dict(type='bool', required=False)
         )
@@ -275,6 +276,33 @@ class DellEmcStorageGroup(object):
             lunsummary.append(sglun)
 
         return lunsummary
+
+    def canonicalize_dict(self, x):
+        "Return a (key, value) list sorted by the hash of the key"
+        return sorted(x.items(), key=lambda x: hash(x[0]))
+
+    def unique_and_count(self, lst):
+        "Return a list of unique dicts with a 'count' key added"
+        grouper = groupby(sorted(map(self.canonicalize_dict, lst)))
+        return [dict(k + [("count", len(list(g)))]) for k, g in grouper]
+
+    def current_sg_config(self):
+        # Helper function returns list of dictionary that can be used to
+        # construct the list of volumes for changes or requests.
+        sg_lunlist = self.conn.provisioning.get_volume_list(
+            filters={'storageGroupId': self.module.params['sgname']})
+
+        lunsummary = []
+        for lun in sg_lunlist:
+            lundetails = self.conn.provisioning.get_volume(lun)
+            sglun = {}
+            sglun['vol_name'] = lundetails['volume_identifier']
+            sglun['cap_gb'] = int(lundetails['cap_gb'])
+            lunsummary.append(sglun)
+
+        current_config = self.unique_and_count(lunsummary)
+
+        return current_config
 
     def create_sg(self):
         changed = False
@@ -374,7 +402,11 @@ class DellEmcStorageGroup(object):
         changed = False
         sglunlist = self.sg_lunlist()
         playbook_lunlist = self.module.params['luns']
-
+        sglist = self.conn.provisioning.get_storage_group_list()
+        # Catch in case user has set resize = true but still want to create
+        # the group.
+        if self.module.params['sgname'] not in sglist:
+            self.create_sg()
         for playbook_request in playbook_lunlist:
             for existinglun in sglunlist:
                 # checking list of luns each volume identifer will be
@@ -438,6 +470,8 @@ class DellEmcStorageGroup(object):
 
         if self.module.params['state'] == 'absent':
             self.delete_sg()
+        elif self.module.params['state'] == "current":
+            self.current_sg_config()
         elif self.module.params['state'] == "present" and self.module.params[
                 'resize']:
             self.resize_sg_vols()
