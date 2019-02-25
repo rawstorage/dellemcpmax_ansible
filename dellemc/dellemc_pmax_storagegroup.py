@@ -246,7 +246,9 @@ class DellEmcStorageGroup(object):
         self.argument_spec = dellemc_pmax_argument_spec()
         self.argument_spec.update(dict(
             sgname=dict(type='str', required=True),
-            slo=dict(type='str', required=False),
+            slo=dict(type='str',choices=['Diamond','Platinum', 'Gold',
+                                         'Silver','Bronze','None'],
+                     required=False),
             luns=dict(type='list', required=False),
             state=dict(type='str', choices=['present', 'absent'],
                        required=True)
