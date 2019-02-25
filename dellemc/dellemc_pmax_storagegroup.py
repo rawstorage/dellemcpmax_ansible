@@ -256,33 +256,60 @@ class DellEmcStorageGroup(object):
         self.module = AnsibleModule(argument_spec=self.argument_spec)
         self.conn = pmaxapi(self.module)
 
-    # TODO add handling for service level change on SG.
+    # TODO add handling for devices without labels.
+
+    def change_service_level(self):
+        """
+        Change Service Level on existing Storage Group
+        :return: Changed True or False
+        """
+        payload={
+            "editStorageGroupActionParam": {
+                "editStorageGroupSLOParam": {
+                    "sloId": self.module.params['slo']
+                }
+            }
+        }
+        try:
+            self.conn.provisioning.modify_storage_group(
+                storagegroup=self.module.params['sgname'], payload=payload)
+            changed = True
+        except Exception:
+            changed = False
+        return changed
 
     def sg_lunlist(self):
-        # Returns formatted list of luns currently in the storage group
-        # specified in the module paramter sgname
-
+        """
+        Get a list of volumes/luns in the storage group and return a list
+        :return: formatted list of luns currently in the storage grou
+        """
         sg_lunlist = self.conn.provisioning.get_volume_list(
             filters={'storageGroupId': self.module.params['sgname']})
-
         lunsummary = []
-        for lun in sg_lunlist:
-            lundetails = self.conn.provisioning.get_volume(lun)
-            sglun = {}
-            sglun['volumeId'] = lundetails['volumeId']
-            sglun['vol_name'] = lundetails['volume_identifier']
-            sglun['cap_gb'] = lundetails['cap_gb']
-            sglun['wwn'] = lundetails['effective_wwn']
-            lunsummary.append(sglun)
-
+        if len(sg_lunlist) > 0:
+            for lun in sg_lunlist:
+                lundetails = self.conn.provisioning.get_volume(lun)
+                sglun = {}
+                sglun['volumeId'] = lundetails['volumeId']
+                sglun['vol_name'] = lundetails['volume_identifier']
+                sglun['cap_gb'] = lundetails['cap_gb']
+                sglun['wwn'] = lundetails['effective_wwn']
+                lunsummary.append(sglun)
         return lunsummary
 
     def canonicalize_dict(self, x):
-        "Return a (key, value) list sorted by the hash of the key"
+        """
+        :param x:
+        :return: "Return a (key, value) list sorted by the hash of the key"
+        """
+
         return sorted(x.items(), key=lambda x: hash(x[0]))
 
     def unique_and_count(self, lst):
-        "Return a list of unique dicts with a 'count' key added"
+        """
+        :param lst:
+        :return: list of unique dicts with a 'count' key added"
+        """
         grouper = groupby(sorted(map(self.canonicalize_dict, lst)))
         return [dict(k + [("count", len(list(g)))]) for k, g in grouper]
 
@@ -308,6 +335,10 @@ class DellEmcStorageGroup(object):
         return current_config
 
     def create_sg(self):
+        """
+        Create SG if needed and exit module gracefully with changes
+        :return:
+        """
         changed = False
         message = "no changes made"
         sglist = self.conn.provisioning.get_storage_group_list()
@@ -372,9 +403,36 @@ class DellEmcStorageGroup(object):
         :return: String Detailing Changes made.
         """
         message = ""
+        changed = self.change_service_level()
         current = self.current_sg_config()
+
+        sg_summary = self.conn.provisioning.get_storage_group(
+                          storage_group_name=self.module.params['sgname'])
+
+        if sg_summary['num_of_vols']==0 and sg_summary['type'] == 'Standalone':
+            for request in self.module.params['luns']:
+                self.conn.provisioning.add_new_vol_to_storagegroup(
+                    sg_id=self.module.params['sgname'],
+                    cap_unit="GB",
+                    num_vols=request['num_vols'],
+                    vol_size=request['cap_gb'],
+                    vol_name=request['vol_name'])
+        sglunnames = []
+        for lunname in current:
+            sglunnames.append(lunname['vol_name'])
+
         for request in self.module.params['luns']:
-            if request not in current:
+            if request['vol_name'] not in sglunnames:
+                self.conn.provisioning.add_new_vol_to_storagegroup(
+                    sg_id=self.module.params['sgname'],
+                    cap_unit="GB",
+                    num_vols=request['num_vols'],
+                    vol_size=request['cap_gb'],
+                    vol_name=request['vol_name'])
+                message = message + "Volumes Added"
+                changed = True
+
+            else:
                 # Check to see if any current volume set needs to be changed.
                 for currentlunset in current:
                     if request['vol_name'] == currentlunset['vol_name']:
@@ -389,33 +447,31 @@ class DellEmcStorageGroup(object):
                                 num_vols=new_vols,
                                 vol_size=request['cap_gb'],
                                 vol_name=request['vol_name'])
-                            message = message + " Volumes Added"
+                            message = message + "Volumes Added"
                             changed = True
-                            current = self.current_sg_config()
                         elif request['num_vols'] == currentlunset[
                             'num_vols'] and \
                                 request['cap_gb'] > currentlunset['cap_gb']:
                             self.resize_sg_vols(volname=request[
                                 'vol_name'], newsize=request['cap_gb'])
-                            message = "Capacity increased for"
+                            message = "Capacity increased for volumes with " \
+                                      "label " + request['vol_name']
                             changed = True
-                            current = self.current_sg_config()
                         elif request['num_vols'] > currentlunset[
                             'num_vols'] and \
                                 request['cap_gb'] > currentlunset['cap_gb']:
-                            self.resize_sg_vols(volname=request[
-                                'vol_name'], newsize=request['cap_gb'])
                             new_vols = request['num_vols'] - currentlunset[
                                 'num_vols']
+                            self.resize_sg_vols(volname=request[
+                                'vol_name'], newsize=request['cap_gb'])
                             self.conn.provisioning.add_new_vol_to_storagegroup(
                                 sg_id=self.module.params['sgname'],
                                 cap_unit="GB",
                                 num_vols=new_vols,
                                 vol_size=request['cap_gb'],
                                 vol_name=request['vol_name'])
-                            message = "volumes added and capacity increased"
                             changed = True
-                            current = self.current_sg_config()
+                            message = "volumes added and resized"
                         elif request['num_vols'] < currentlunset['num_vols']:
                             self.module.exit_json(msg="Module doesn't support "
                                                   "removing devices please "
@@ -425,16 +481,8 @@ class DellEmcStorageGroup(object):
                                                       "playbook is trying " +
                                                           str(request),
                                                   changed=changed)
-                else:
-                    self.conn.provisioning.add_new_vol_to_storagegroup(
-                        sg_id=self.module.params['sgname'],
-                        cap_unit="GB",
-                        num_vols=request['num_vols'],
-                        vol_size=request['cap_gb'],
-                        vol_name=request['vol_name'])
-                    message = "volumes added"
-                    current = self.current_sg_config()
-                    changed = True
+
+
 
         lunsummary = self.sg_lunlist()
         facts = ({'storagegroup_name': self.module.params['sgname'],
@@ -449,6 +497,11 @@ class DellEmcStorageGroup(object):
                               **result)
 
     def resize_sg_vols(self, volname, newsize):
+        """
+        :param volname: identifier name for volume to be resized
+        :param newsize: Requested size in GB.
+        :return:
+        """
         # Assumes volumes already exist in storage group.  Attempts to match
         # volume based on volume label.
         sglunlist = self.sg_lunlist()
@@ -461,6 +514,10 @@ class DellEmcStorageGroup(object):
                             device_id=existinglun['volumeId'])
 
     def delete_sg(self):
+        """
+        Delete Storage Group
+        :return:
+        """
         # TODO Add check to see if SG is child, needs to be removed from
         # parent before deleting.
         changed = False
@@ -475,15 +532,19 @@ class DellEmcStorageGroup(object):
                 # Remove volume label name before deleting storage group
                 lunlist = self.sg_lunlist()
                 for lun in lunlist:
+                    # Remove labels from devices before deleting to ensure
+                    # they are valid for re-use.
                     self.conn.provisioning._modify_volume(
                         device_id=lun['volumeId'], payload={
-                                    "editVolumeActionParam": {
-                                        "modifyVolumeIdentifierParam": {
-                                            "volumeIdentifier": {
-                                                "volumeIdentifierChoice":
-                                                    "none"
-                                            }
-                                        }}})
+                            "editVolumeActionParam": {
+                                "modifyVolumeIdentifierParam": {
+                                    "volumeIdentifier": {
+                                        "volumeIdentifierChoice":
+                                            "none"
+                                    }
+                                }},
+                            "executionOption": "ASYNCHRONOUS"
+                        })
                 self.conn.provisioning.delete_storagegroup(
                     storagegroup_id=self.module.params['sgname'])
                 changed = True
@@ -500,8 +561,6 @@ class DellEmcStorageGroup(object):
 
         if self.module.params['state'] == 'absent':
             self.delete_sg()
-        elif self.module.params['state'] == "current":
-            self.current_sg_config()
         elif self.module.params['state'] == "present":
             self.create_sg()
 
