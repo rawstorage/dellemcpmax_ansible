@@ -265,7 +265,7 @@ class DellEmcStorageGroup(object):
         Change Service Level on existing Storage Group
         :return: Changed True or False
         """
-        payload={
+        payload = {
             "editStorageGroupActionParam": {
                 "editStorageGroupSLOParam": {
                     "sloId": self.module.params['slo']
@@ -483,8 +483,6 @@ class DellEmcStorageGroup(object):
                                                       "playbook is trying " +
                                                           str(request),
                                                   changed=changed)
-
-
 
         lunsummary = self.sg_lunlist()
         facts = ({'storagegroup_name': self.module.params['sgname'],
