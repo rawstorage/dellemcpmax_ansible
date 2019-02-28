@@ -77,13 +77,6 @@ options:
       - "Valid values are present, absent, or current"
     type: string
     required: true
-  resize:
-    description:
-      - "setting this parameter will attempt to resize volumes in the 
-      supplied lunlist, volume requests in the lun list with matching label 
-      will be resized providing device size in larger than current"
-    type: bool
-    required: false  
 
 requirements:
   - Ansible
