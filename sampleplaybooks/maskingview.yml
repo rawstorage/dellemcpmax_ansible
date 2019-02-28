@@ -1,20 +1,24 @@
-- name: "Create a Masking View from existing components"
-  connection: local
+#!/usr/bin/env ansible-playbook
+- name: "Create Masking View"
   hosts: localhost
+  connection: local
+  gather_facts: no
   vars_files:
     - vars.yml
-
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
   tasks:
     - name: "Create Masking View for Host Access to storage group volumes"
       dellemc_pmax_maskingview:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
+        <<: *uni_connection_vars
         sgname: "Ansible_SG"
         portgroup_id: "Ansible_PG"
         host_or_cluster : "AnsibleHost1"
         maskingview_name: "AnsibleMV"
-        state: absent
+        state: present

@@ -1,3 +1,5 @@
+#!/usr/bin/env ansible-playbook
+---
 - name: "Provision a new storage group"
   hosts: localhost
   connection: local
@@ -5,30 +7,33 @@
   vars_files:
     - vars.yml
   vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
     lun_request:
       # Each item will be treated as a request for volumes of the same size
       # volume name must be unique per request, all sizes are GB values.  A
       # request can have multiple volumes with the same name, however module
       # will not run if it detects two requests with same name.  This is self
       # imposed restriction to make idempotence easier for change tracking.
-      - num_vols: 2
+      - num_vols: 1
         cap_gb: 2
         vol_name: "DATA"
-      - num_vols: 3
-        cap_gb: 2
+      - num_vols: 1
+        cap_gb: 1
         vol_name: "REDO"
+
   tasks:
     - name: "Create New Storage Group volumes"
       dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
+        <<: *uni_connection_vars
         verifycert: "{{verifycert}}"
-        sgname: "Ansible_SG"
-        slo: "Diamond"
+        sgname: "Ansible_SG2"
+        slo: "Bronze"
         luns: "{{lun_request}}"
         state: 'present'
-        resize: True
     - debug: var=storagegroup_detail

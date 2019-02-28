@@ -1,17 +1,22 @@
-- name: Provision Storage For DB Cluster
+#!/usr/bin/env ansible-playbook
+- name: "Modify Volumes"
   hosts: localhost
   connection: local
+  gather_facts: no
   vars_files:
     - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
   tasks:
   - name: Modify Volume Sizes and Labels
     dellemc_pmax_volume:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         sgname: 'Ansible_SG'
         in_sg: "present"
         volumes:

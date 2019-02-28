@@ -1,18 +1,23 @@
-- name: "SRDF Operations Playbook"
-  connection: local
+#!/usr/bin/env ansible-playbook
+- name: "Control SRDF State of a Storage Group"
   hosts: localhost
+  connection: local
+  gather_facts: no
   vars_files:
     - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
 
   tasks:
     - name: "Establish SRDF Session"
       dellemc_pmax_srdf:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        array_id: "{{array_id}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        verifycert: "{{verifycert}}"
+        <<: *uni_connection_vars
         sgname: SRDF_TEST
         action: Establish
     - debug: var=rdfstate
