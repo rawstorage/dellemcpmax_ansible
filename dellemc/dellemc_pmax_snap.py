@@ -269,7 +269,7 @@ def main():
                                              target_sg_id=module.params[
                                                  'target_sgname'],
                                              unlink=True, gen_num=0,
-                                             async=True)
+                                             _async=True)
 
                 changed = True
             snapshotdetails = rep.get_snapshot_generation_details(

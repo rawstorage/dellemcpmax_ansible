@@ -6,7 +6,6 @@
 
 from __future__ import absolute_import, division, print_function
 from itertools import groupby
-import string
 
 __metaclass__ = type
 
@@ -425,7 +424,7 @@ class DellEmcStorageGroup(object):
                         num_vols=lun[
                             'num_vols'],
                         vol_size=lun['cap_gb'],
-                        vol_name=lun['vol_name'])
+                        vol_name=lun['vol_name'],create_new_volumes=False)
                 message = "New Storage Group Created and Volumes Added"
         # If the storage group exists, we need to check if the volumelist
         # matches what the user has in the playbook
