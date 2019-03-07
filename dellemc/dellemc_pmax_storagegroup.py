@@ -339,9 +339,12 @@ class DellEmcStorageGroup(object):
                 lundetails = self.conn.provisioning.get_volume(lun)
                 sglun = {}
                 sglun['volumeId'] = lundetails['volumeId']
-                sglun['vol_name'] = lundetails['volume_identifier']
                 sglun['cap_gb'] = lundetails['cap_gb']
                 sglun['wwn'] = lundetails['effective_wwn']
+                if 'volume_identifier' in lundetails:
+                    sglun['vol_name'] = lundetails['volume_identifier']
+                else:
+                    sglun['vol_name'] = "NO_LABEL"
                 lunsummary.append(sglun)
         return lunsummary
 
