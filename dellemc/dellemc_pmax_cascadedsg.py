@@ -265,6 +265,7 @@ class DellEmcCascadeStorageGroup(object):
         elif self.module.params["parent_state"] == 'absent':
             self.delete_sg()
 
+
 def main():
     d = DellEmcCascadeStorageGroup()
     d.apply_module()
