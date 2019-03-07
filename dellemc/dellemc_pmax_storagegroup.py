@@ -450,14 +450,15 @@ class DellEmcStorageGroup(object):
         changes per the lun request list supplied in the playbook
         :return: String Detailing Changes made.
         """
-        message = ""
+        message = "No Changes Made"
         changed = self.change_service_level()
         current = self.current_sg_config()
 
         sg_summary = self.conn.provisioning.get_storage_group(
                           storage_group_name=self.module.params['sgname'])
 
-        if sg_summary['num_of_vols']==0 and sg_summary['type'] == 'Standalone':
+        if sg_summary['num_of_vols'] == 0 and sg_summary['type'] == \
+                'Standalone':
             for request in self.module.params['luns']:
                 self.conn.provisioning.add_new_vol_to_storagegroup(
                     sg_id=self.module.params['sgname'],
