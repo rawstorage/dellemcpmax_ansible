@@ -23,7 +23,8 @@ def pmaxapi(module):
         HAS_PyU4V = False
 
     if not HAS_PyU4V:
-        module.fail_json(msg='PyU4V is required for this module')
+        module.fail_json(msg='PyU4V 3.0.0.9 or higher is required for this '
+                             'module')
     else:
         conn = PyU4V.U4VConn(server_ip=module.params['unispherehost'],
                              port=8443,
