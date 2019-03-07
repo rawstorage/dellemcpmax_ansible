@@ -6,6 +6,7 @@
 
 from __future__ import absolute_import, division, print_function
 from itertools import groupby
+import string
 
 __metaclass__ = type
 
@@ -27,6 +28,7 @@ description:
   - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
   and PowerMAX. Every effort has been made to verify the scripts run with 
   valid input. These modules are a tech preview."
+
 module: dellemc_pmax_storagegroup
 options:
   array_id:
@@ -66,15 +68,21 @@ options:
       - "password for Unisphere user"
   luns:
     description:
-      - "List describing volumes to be added or list of luns expected to be 
-      in the storage group. list should have a unique combination of 
-      num_vols, cap_gb, vol_name. See examples for usage"
+      - "List of volume requests to be added or already in storage group. 
+      Each request in the list provided should have a unique combination of 
+      num_vols, cap_gb, vol_name. Volume Name should be unique to the 
+      request. Increasing size or num_volumes on a volume request 
+      would add or expand capacity for volumes in requests list.  If empty 
+      list is provided current contents of storage group will be returned: See 
+      examples for usage"
     type: list
     required: false
     Default: empty list which will try to create storage group with no volumes 
   state:
     description:
-      - "Valid values are present, absent, or current"
+      - "Valid values are present, absent, or current. Present will create 
+      storage group if it doesn't already exist, absent will attempt to 
+      delete"
     type: string
     required: true
 
@@ -85,6 +93,7 @@ requirements:
   - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
+#!/usr/bin/env ansible-playbook
 ---
 - name: "Provision a new storage group"
   hosts: localhost
@@ -93,33 +102,77 @@ EXAMPLES = '''
   vars_files:
     - vars.yml
   vars:
-    lun_request:
-      # Each item will be treated as a request for volumes of the same size
-      # volume name must be unique per request, all sizes are GB values.  A
-      # request can have multiple volumes with the same name, however module
-      # will not run if it detects two requests with same name.  This is self
-      # imposed restriction to make idempotence easier for change tracking.
-      - num_vols: 2
-        cap_gb: 2
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{   user  }}"
+      verifycert : "{{ verifycert }}"
+# Each item will be treated as a request for volumes of the same size
+# volume name must be unique per request, all sizes are GB values.  A
+# request can have multiple volumes with the same name, however module
+# will not run if it detects two requests with same name.  This is self
+# imposed restriction to make idempotence easier for change tracking.
+    lun_request :
+      - num_vols : 1
+        cap_gb: 4
         vol_name: "DATA"
-      - num_vols: 3
+      - num_vols: 1
         cap_gb: 2
         vol_name: "REDO"
+      - num_vols: 1
+        cap_gb: 3
+        vol_name: "FRA"
+
   tasks:
-    - name: "Create New Storage Group volumes"
-      dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
-        sgname: "Ansible_SG"
-        slo: "Diamond"
-        luns: "{{lun_request}}"
-        state: 'present'
-        resize: True
-    - debug: var=storagegroup_detail
+  - name: "Create New Storage Group volumes"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+#!/usr/bin/env ansible-playbook
+---
+- name: "Add Volumes storage group"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{   user  }}"
+      verifycert : "{{ verifycert }}"
+    lun_request :
+    # num_vols for DATA has been increased to 2, new volume will be added of 
+    # 4 GB with name DATA. 
+      - num_vols : 2
+        cap_gb: 4
+        vol_name: "DATA"
+      - num_vols: 1
+        cap_gb: 2
+        vol_name: "REDO"
+      - num_vols: 1
+        cap_gb: 3
+        vol_name: "FRA"
+    # A new 1 GB volume is to be added with Label TEMP
+      - num_vols: 1
+        cap_gb: 1
+        vol_name: "TEMP"
+  tasks:
+  - name: "Modify Group volumes"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
 
 '''
 RETURN = r'''
@@ -414,16 +467,16 @@ class DellEmcStorageGroup(object):
                     vol_name=request['vol_name'])
         sglunnames = []
         for lunname in current:
-            sglunnames.append(lunname['vol_name'])
+            sglunnames.append(lunname['vol_name'].upper())
 
         for request in self.module.params['luns']:
-            if request['vol_name'] not in sglunnames:
+            if request['vol_name'].upper() not in sglunnames:
                 self.conn.provisioning.add_new_vol_to_storagegroup(
                     sg_id=self.module.params['sgname'],
                     cap_unit="GB",
                     num_vols=request['num_vols'],
                     vol_size=request['cap_gb'],
-                    vol_name=request['vol_name'])
+                    vol_name=request['vol_name'].upper())
                 message = message + "Volumes Added"
                 changed = True
 
