@@ -20,8 +20,12 @@ DOCUMENTATION = '''
 author:
   - "Paul Martin (@rawstorage)"
 short_description: "Storage group Control Module for Dell EMC PowerMax or 
-VMAX All Flash Arrays, can be used to show, create, delete, and add volumes,
-volume removal is handled in dellemc_pmax_volume module"
+VMAX All Flash Arrays, This module can create or delete storage groups and 
+manipulate size and number of volumes given in volume requests list. volume 
+removal is handled in dellemc_pmax_volume module, to build a requests list 
+for an existing storage group you can run with an empty requests list and 
+examine the return"
+
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
@@ -303,8 +307,6 @@ class DellEmcStorageGroup(object):
         self.module = AnsibleModule(argument_spec=self.argument_spec)
         self.conn = pmaxapi(self.module)
 
-    # TODO add handling for devices without labels.
-
     def change_service_level(self):
         """
         Change Service Level on existing Storage Group
@@ -443,7 +445,7 @@ class DellEmcStorageGroup(object):
         result = {'state': 'info', 'changed': changed}
 
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                              **result)
+                              **result )
 
     def check_volume_changes(self):
         changed = False
@@ -471,6 +473,18 @@ class DellEmcStorageGroup(object):
         sglunnames = []
         for lunname in current:
             sglunnames.append(lunname['vol_name'].upper())
+
+        if len(current) > len(self.module.params['luns']):
+            facts = ({'storagegroup_name': self.module.params['sgname'],
+                      'storage_group_current_config': current,
+                      'message': "Volume Requests must contain current "
+                                 "confugraiton plus additional requests, "
+                                 "operations on a subset of volumes no "
+                                 "supported with this module."})
+            result = {'state': 'info', 'changed': changed}
+
+            self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
+                                  **result)
 
         for request in self.module.params['luns']:
             if request['vol_name'].upper() not in sglunnames:
