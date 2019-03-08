@@ -581,8 +581,6 @@ class DellEmcStorageGroup(object):
         Delete Storage Group
         :return:
         """
-        # TODO Add check to see if SG is child, needs to be removed from
-        # parent before deleting.
         changed = False
         # Compile a list of existing storage groups.
         sglist = self.conn.provisioning.get_storage_group_list()
