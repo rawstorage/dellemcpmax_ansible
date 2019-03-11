@@ -133,8 +133,7 @@ class DellEmcPmaxMaskingview(object):
                                                       'maskingview_name'])
 
         except Exception:
-            message = "Error Creating Masking view rerun playbook with -vvv to " \
-                      "check error message"
+            message = "Check input parameters, Error Creating Masking view"
         facts = ({'message': message,
                   'mv_details': mv_details})
         result = {'state': 'info', 'changed': changed}
