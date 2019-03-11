@@ -335,10 +335,10 @@ class DellEmcPortGroup(object):
 
     def delete_portgroup(self):
         changed = False
+        message = "No Change to Port Groups"
         # Build a list of Port Groups that are not in masking view
         pg_list = self.conn.provisioning.get_portgroup_list(
-            filters=({"num_of_masking_views"
-                      : "0"}))
+            filters=({"num_of_masking_views": "0"}))
         if self.module.params['portgroup_id'] in pg_list:
             self.conn.provisioning.delete_portgroup(
                 self.module.params['portgroup_id'])
