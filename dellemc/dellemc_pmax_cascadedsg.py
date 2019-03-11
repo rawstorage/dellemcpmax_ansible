@@ -218,8 +218,10 @@ class DellEmcCascadeStorageGroup(object):
         if not child_exists:
             self.module.exit_json(msg=child_message, changed=self.changed)
         # prechecks passed.  Module can now create cascaded relationship
-        parent_sg_detail=self.conn.provisioning.get_storage_group(self.parent_sg)
+
         if self.parent_sg in self.sglist:
+            parent_sg_detail = self.conn.provisioning.get_storage_group(
+                self.parent_sg)
             if parent_sg_detail["type"] == "Standalone" and parent_sg_detail[
                   "num_of_vols"] == 0:
                 self.add_child_sg()
@@ -231,6 +233,7 @@ class DellEmcCascadeStorageGroup(object):
                                                         slo="None",
                                                         sg_id=self.parent_sg)
                 self.changed=True
+                self.add_child_sg()
             except Exception:
                 self.module.exit_json(msg="Problem creating Parent storage "
                                           "group", changed = self.changed)
