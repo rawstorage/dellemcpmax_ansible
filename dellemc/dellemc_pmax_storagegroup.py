@@ -176,6 +176,14 @@ EXAMPLES = '''
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: present
+    tasks:
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
 
 '''
 RETURN = r'''
@@ -428,8 +436,8 @@ class DellEmcStorageGroup(object):
                         vol_size=lun['cap_gb'],
                         vol_name=lun['vol_name'],create_new_volumes=False)
                 message = "New Storage Group Created and Volumes Added"
-        # If the storage group exists, we need to check if the volumelist
-        # matches what the user has in the playbook
+        # If the storage group exists, need to check if the volume
+        # configuration and size matches the playbook
         elif self.module.params['sgname'] in sglist and len(playbook_request) \
                 > 0:
             message = self.check_volume_changes()
@@ -478,8 +486,8 @@ class DellEmcStorageGroup(object):
             facts = ({'storagegroup_name': self.module.params['sgname'],
                       'storage_group_current_config': current,
                       'message': "Volume Requests must contain current "
-                                 "confugraiton plus additional requests, "
-                                 "operations on a subset of volumes no "
+                                 "config plus additional requests, "
+                                 "operations on a subset of volumes not "
                                  "supported with this module."})
             result = {'state': 'info', 'changed': changed}
 
