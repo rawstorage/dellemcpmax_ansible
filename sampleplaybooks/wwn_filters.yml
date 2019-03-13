@@ -1,0 +1,21 @@
+---
+
+- name : Testing the WWN custom filters
+  hosts: localhost
+  connection: local
+
+  vars:
+    testing_wwn: "11223344aabbccdd"
+
+  tasks:
+  - name: WWN lowercase with colons
+    debug: msg="{{ testing_wwn | wwn }}"
+
+  - name: WWN lowercase without colons
+    debug: msg="{{ testing_wwn | wwn_nodots }}"
+
+  - name: WWN uppercase with colons
+    debug: msg="{{ testing_wwn | WWN }}"
+
+  - name: WWN uppercase without colons
+    debug: msg="{{ testing_wwn | WWN_nodots }}"
