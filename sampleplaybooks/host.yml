@@ -1,17 +1,23 @@
-- name: "Create a New Host"
-  connection: local
+#!/usr/bin/env ansible-playbook
+---
+- name: "Host Related Tasks"
   hosts: localhost
+  connection: local
+  gather_facts: no
   vars_files:
     - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
   tasks:
   - name: Create Host
     dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         initiator_list:
         - 10000000c98ffea2
         - 10000000c98ffeb3
@@ -20,12 +26,7 @@
         wwn_state: present
   - name: Add initiator Host
     dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         initiator_list:
         - 10000000c98ffec3
         - 10000000c98ffec4
@@ -34,12 +35,7 @@
         wwn_state: present
   - name: remove initiators from host
     dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         initiator_list:
         - 10000000c98ffea2
         - 10000000c98ffeb3
@@ -48,12 +44,7 @@
         wwn_state: absent
   - name: Delete Host
     dellemc_pmax_host:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         initiator_list:
         - 10000000c98ffea2
         - 10000000c98ffeb3

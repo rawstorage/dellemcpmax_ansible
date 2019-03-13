@@ -20,13 +20,18 @@ DOCUMENTATION = '''
 author:
   - "Paul Martin (@rawstorage)"
 short_description: "Storage group Control Module for Dell EMC PowerMax or 
-VMAX All Flash Arrays, can be used to show, create, delete, and add volumes,
-volume removal is handled in dellemc_pmax_volume module"
+VMAX All Flash Arrays, This module can create or delete storage groups and 
+manipulate size and number of volumes given in volume requests list. volume 
+removal is handled in dellemc_pmax_volume module, to build a requests list 
+for an existing storage group you can run with an empty requests list and 
+examine the return"
+
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
   and PowerMAX. Every effort has been made to verify the scripts run with 
   valid input. These modules are a tech preview."
+
 module: dellemc_pmax_storagegroup
 options:
   array_id:
@@ -66,32 +71,32 @@ options:
       - "password for Unisphere user"
   luns:
     description:
-      - "List describing volumes to be added or list of luns expected to be 
-      in the storage group. list should have a unique combination of 
-      num_vols, cap_gb, vol_name. See examples for usage"
+      - "List of volume requests to be added or already in storage group. 
+      Each request in the list provided should have a unique combination of 
+      num_vols, cap_gb, vol_name. Volume Name should be unique to the 
+      request. Increasing size or num_volumes on a volume request 
+      would add or expand capacity for volumes in requests list.  If empty 
+      list is provided current contents of storage group will be returned: See 
+      examples for usage"
     type: list
     required: false
     Default: empty list which will try to create storage group with no volumes 
   state:
     description:
-      - "Valid values are present, absent, or current"
+      - "Valid values are present, absent, or current. Present will create 
+      storage group if it doesn't already exist, absent will attempt to 
+      delete"
     type: string
     required: true
-  resize:
-    description:
-      - "setting this parameter will attempt to resize volumes in the 
-      supplied lunlist, volume requests in the lun list with matching label 
-      will be resized providing device size in larger than current"
-    type: bool
-    required: false  
 
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
   - "VMAX All Flash, VMAX3, or PowerMax storage Array."
-  - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
+  - "PyU4V version 3.0.0.9 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
+#!/usr/bin/env ansible-playbook
 ---
 - name: "Provision a new storage group"
   hosts: localhost
@@ -100,33 +105,85 @@ EXAMPLES = '''
   vars_files:
     - vars.yml
   vars:
-    lun_request:
-      # Each item will be treated as a request for volumes of the same size
-      # volume name must be unique per request, all sizes are GB values.  A
-      # request can have multiple volumes with the same name, however module
-      # will not run if it detects two requests with same name.  This is self
-      # imposed restriction to make idempotence easier for change tracking.
-      - num_vols: 2
-        cap_gb: 2
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{   user  }}"
+      verifycert : "{{ verifycert }}"
+# Each item will be treated as a request for volumes of the same size
+# volume name must be unique per request, all sizes are GB values.  A
+# request can have multiple volumes with the same name, however module
+# will not run if it detects two requests with same name.  This is self
+# imposed restriction to make idempotence easier for change tracking.
+    lun_request :
+      - num_vols : 1
+        cap_gb: 4
         vol_name: "DATA"
-      - num_vols: 3
+      - num_vols: 1
         cap_gb: 2
         vol_name: "REDO"
+      - num_vols: 1
+        cap_gb: 3
+        vol_name: "FRA"
+
   tasks:
-    - name: "Create New Storage Group volumes"
-      dellemc_pmax_storagegroup:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
-        sgname: "Ansible_SG"
-        slo: "Diamond"
-        luns: "{{lun_request}}"
-        state: 'present'
-        resize: True
-    - debug: var=storagegroup_detail
+  - name: "Create New Storage Group volumes"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+#!/usr/bin/env ansible-playbook
+---
+- name: "Add Volumes storage group"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{   user  }}"
+      verifycert : "{{ verifycert }}"
+    lun_request :
+    # num_vols for DATA has been increased to 2, new volume will be added of 
+    # 4 GB with name DATA. 
+      - num_vols : 2
+        cap_gb: 4
+        vol_name: "DATA"
+      - num_vols: 1
+        cap_gb: 2
+        vol_name: "REDO"
+      - num_vols: 1
+        cap_gb: 3
+        vol_name: "FRA"
+    # A new 1 GB volume is to be added with Label TEMP
+      - num_vols: 1
+        cap_gb: 1
+        vol_name: "TEMP"
+  tasks:
+  - name: "Modify Group volumes"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+    tasks:
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
 
 '''
 RETURN = r'''
@@ -258,8 +315,6 @@ class DellEmcStorageGroup(object):
         self.module = AnsibleModule(argument_spec=self.argument_spec)
         self.conn = pmaxapi(self.module)
 
-    # TODO add handling for devices without labels.
-
     def change_service_level(self):
         """
         Change Service Level on existing Storage Group
@@ -293,9 +348,12 @@ class DellEmcStorageGroup(object):
                 lundetails = self.conn.provisioning.get_volume(lun)
                 sglun = {}
                 sglun['volumeId'] = lundetails['volumeId']
-                sglun['vol_name'] = lundetails['volume_identifier']
                 sglun['cap_gb'] = lundetails['cap_gb']
                 sglun['wwn'] = lundetails['effective_wwn']
+                if 'volume_identifier' in lundetails:
+                    sglun['vol_name'] = lundetails['volume_identifier']
+                else:
+                    sglun['vol_name'] = "NO_LABEL"
                 lunsummary.append(sglun)
         return lunsummary
 
@@ -376,10 +434,10 @@ class DellEmcStorageGroup(object):
                         num_vols=lun[
                             'num_vols'],
                         vol_size=lun['cap_gb'],
-                        vol_name=lun['vol_name'])
+                        vol_name=lun['vol_name'],create_new_volumes=False)
                 message = "New Storage Group Created and Volumes Added"
-        # If the storage group exists, we need to check if the volumelist
-        # matches what the user has in the playbook
+        # If the storage group exists, need to check if the volume
+        # configuration and size matches the playbook
         elif self.module.params['sgname'] in sglist and len(playbook_request) \
                 > 0:
             message = self.check_volume_changes()
@@ -395,7 +453,7 @@ class DellEmcStorageGroup(object):
         result = {'state': 'info', 'changed': changed}
 
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                              **result)
+                              **result )
 
     def check_volume_changes(self):
         changed = False
@@ -404,14 +462,15 @@ class DellEmcStorageGroup(object):
         changes per the lun request list supplied in the playbook
         :return: String Detailing Changes made.
         """
-        message = ""
+        message = "No Changes Made"
         changed = self.change_service_level()
         current = self.current_sg_config()
 
         sg_summary = self.conn.provisioning.get_storage_group(
                           storage_group_name=self.module.params['sgname'])
 
-        if sg_summary['num_of_vols']==0 and sg_summary['type'] == 'Standalone':
+        if sg_summary['num_of_vols'] == 0 and sg_summary['type'] == \
+                'Standalone':
             for request in self.module.params['luns']:
                 self.conn.provisioning.add_new_vol_to_storagegroup(
                     sg_id=self.module.params['sgname'],
@@ -421,16 +480,28 @@ class DellEmcStorageGroup(object):
                     vol_name=request['vol_name'])
         sglunnames = []
         for lunname in current:
-            sglunnames.append(lunname['vol_name'])
+            sglunnames.append(lunname['vol_name'].upper())
+
+        if len(current) > len(self.module.params['luns']):
+            facts = ({'storagegroup_name': self.module.params['sgname'],
+                      'storage_group_current_config': current,
+                      'message': "Volume Requests must contain current "
+                                 "config plus additional requests, "
+                                 "operations on a subset of volumes not "
+                                 "supported with this module."})
+            result = {'state': 'info', 'changed': changed}
+
+            self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
+                                  **result)
 
         for request in self.module.params['luns']:
-            if request['vol_name'] not in sglunnames:
+            if request['vol_name'].upper() not in sglunnames:
                 self.conn.provisioning.add_new_vol_to_storagegroup(
                     sg_id=self.module.params['sgname'],
                     cap_unit="GB",
                     num_vols=request['num_vols'],
                     vol_size=request['cap_gb'],
-                    vol_name=request['vol_name'])
+                    vol_name=request['vol_name'].upper())
                 message = message + "Volumes Added"
                 changed = True
 
@@ -518,8 +589,6 @@ class DellEmcStorageGroup(object):
         Delete Storage Group
         :return:
         """
-        # TODO Add check to see if SG is child, needs to be removed from
-        # parent before deleting.
         changed = False
         # Compile a list of existing storage groups.
         sglist = self.conn.provisioning.get_storage_group_list()

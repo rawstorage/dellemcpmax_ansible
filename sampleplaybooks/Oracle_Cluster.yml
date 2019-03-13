@@ -1,0 +1,117 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: "Provision Storage for Oracle Cluster"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{ array_id }}"
+      password: "{{ password }}"
+      unispherehost: "{{ unispherehost }}"
+      universion: "{{ universion }}"
+      user: "{{ user }}"
+      verifycert: "{{ verifycert }}"
+    data_lun_request:
+      - num_vols: 4
+        cap_gb: 10
+        vol_name: "DATA"
+    redo_lun_request:
+      - num_vols: 2
+        cap_gb: 5
+        vol_name: "REDO"
+    fra_lun_request:
+      - num_vols: 1
+        cap_gb: 5
+        vol_name: "FRA"
+    temp_lun_request:
+      - num_vols: 1
+        cap_gb: 1
+        vol_name: "Temp"
+  tasks:
+    - name: "Create DATA Storage Group volumes"
+      dellemc_pmax_storagegroup:
+        <<: *uni_connection_vars
+        sgname: "Oracle_DATA_SG"
+        slo: "Diamond"
+        luns: "{{ data_lun_request }}"
+        state: present
+    - name: "Create REDO Storage Group volumes"
+      dellemc_pmax_storagegroup:
+        <<: *uni_connection_vars
+        sgname: "Oracle_REDO_SG"
+        slo: "Diamond"
+        luns: "{{ redo_lun_request }}"
+        state: present
+    - name: "Create FRA Storage Group volumes"
+      dellemc_pmax_storagegroup:
+        <<: *uni_connection_vars
+        sgname: "Oracle_FRA_SG"
+        slo: "Diamond"
+        luns: "{{ fra_lun_request }}"
+        state: present
+    - name: "Create Temp Storage Group volumes"
+      dellemc_pmax_storagegroup:
+        <<: *uni_connection_vars
+        sgname: "Oracle_TEMP_SG"
+        slo: "Diamond"
+        luns: "{{ temp_lun_request }}"
+        state: present
+    - name: "Create Cascaded Storage Group Relationship"
+      dellemc_pmax_cascadedsg:
+        <<: *uni_connection_vars
+        parent_sg: Ansible_ORA_SG
+        child_sg_list:
+        - Oracle_DATA_SG
+        - Oracle_REDO_SG
+        - Oracle_TEMP_SG
+        - Oracle_FRA_SG
+        parent_state: present
+        child_state: present
+    - name: Create Host1
+      dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 10000000c98ffea2
+        - 10000000c98ffeb3
+        host_id: "AnsibleOra1"
+        state: present
+        wwn_state: present
+    - name: Create Host2
+      dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 10000000c98ffea4
+        - 10000000c98ffeb5
+        host_id: "AnsibleOra2"
+        state: present
+        wwn_state: present
+    - name: Add host to Custer
+      dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: Ansible_Ora_Cl
+        host_list:
+        - AnsibleOra2
+        - AnsibleOra1
+        state: present
+        host_state: in_cluster
+    - name: "Create New Port Group and add ports"
+      dellemc_pmax_portgroup:
+        <<: *uni_connection_vars
+        portgroup_id: "Ansible_ORA_PG"
+        array_ports:
+        - FA-2D:6
+        - FA-1D:6
+        state: present
+        port_state: in_pg
+    - name: "Create Masking View for Host Access to storage group volumes"
+      dellemc_pmax_maskingview:
+        <<: *uni_connection_vars
+        sgname: "Ansible_ORA_SG"
+        portgroup_id: "Ansible_ORA_PG"
+        host_or_cluster: "Ansible_Ora_Cl"
+        maskingview_name: "Ansible_Ora_MV"
+        state: present
+

@@ -1,17 +1,23 @@
-- name: "Create a New Host"
-  connection: local
+#!/usr/bin/env ansible-playbook
+---
+- name: "Cluster Related Tasks"
   hosts: localhost
+  connection: local
+  gather_facts: no
   vars_files:
     - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
   tasks:
   - name: Create Custer
     dellemc_pmax_cluster:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         cluster_name: AnsibleCluster
         host_list:
         - AnsibleHost2
@@ -20,12 +26,7 @@
         host_state: in_cluster
   - name: Add host to Custer
     dellemc_pmax_cluster:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         cluster_name: AnsibleCluster
         host_list:
         - AnsibleHost3
@@ -33,12 +34,7 @@
         host_state: in_cluster
 - name: Remove Host from Custer
     dellemc_pmax_cluster:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         cluster_name: AnsibleCluster
         host_list:
         - AnsibleHost3
@@ -46,12 +42,7 @@
         host_state: not_in_cluster
   - name: Delete Custer
     dellemc_pmax_cluster:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
+        <<: *uni_connection_vars
         cluster_name: AnsibleCluster
         host_list:
         state: absent

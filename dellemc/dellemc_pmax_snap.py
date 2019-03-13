@@ -72,7 +72,7 @@ requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
   - "VMAX All Flash, VMAX3, or PowerMax storage Array."
-  - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
+  - "PyU4V version 3.0.0.9 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
 ---
@@ -269,7 +269,7 @@ def main():
                                              target_sg_id=module.params[
                                                  'target_sgname'],
                                              unlink=True, gen_num=0,
-                                             async=True)
+                                             _async=True)
 
                 changed = True
             snapshotdetails = rep.get_snapshot_generation_details(

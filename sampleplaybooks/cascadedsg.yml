@@ -1,19 +1,23 @@
+#!/usr/bin/env ansible-playbook
 - name: "Provision a new storage group"
   hosts: localhost
   connection: local
   gather_facts: no
   vars_files:
     - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{array_id}}"
+      password: "{{password}}"
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      user: "{{user}}"
+      verifycert: "{{verifycert}}"
 
   tasks:
     - name: "Create New Storage Group volumes"
       dellemc_pmax_cascadedsg:
-        array_id: "{{array_id}}"
-        password: "{{password}}"
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        user: "{{user}}"
-        verifycert: "{{verifycert}}"
+        <<: *uni_connection_vars
         parent_sg: ansible_parent
         child_sg_list:
         - ansible_child1

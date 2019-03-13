@@ -68,7 +68,7 @@ requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
   - "VMAX All Flash, VMAX3, or PowerMax storage Array."
-  - "PyU4V version 3.0.0.8 or higher using PIP python -m pip install PyU4V"
+  - "PyU4V version 3.0.0.9 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
 ---
@@ -133,8 +133,7 @@ class DellEmcPmaxMaskingview(object):
                                                       'maskingview_name'])
 
         except Exception:
-            message = "Error Creating Masking view rerun playbook with -vvv to " \
-                      "check error message"
+            message = "Check input parameters, Error Creating Masking view"
         facts = ({'message': message,
                   'mv_details': mv_details})
         result = {'state': 'info', 'changed': changed}
