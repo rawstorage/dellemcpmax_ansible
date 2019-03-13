@@ -60,26 +60,31 @@ options:
 '''
 
 EXAMPLES = '''
+#!/usr/bin/env ansible-playbook
 ---
-- name: "Gather all facts except for the volumes"
-  dellemc_pmax_gather_facts:
+- name: "Host Related Tasks"
+  hosts: localhost
+  connection: local
+  gather_facts: no
   vars_files:
     - vars.yml
-    
-- debug: var=dellemc_pmax_facts
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{  array_id }}"
+      password: "{{  password }}"
+      unispherehost: "{{  unispherehost }}"
+      universion: "{{  universion }}"
+      user: "{{  user }}"
+      verifycert: "{{  verifycert }}"
+  tasks:
+    - name: "Gather only storage_groups and masking_views facts"
+      dellemc_pmax_gather_facts:
+        <<: *uni_connection_vars
+        gather_subset:
+        - storage_group_demand
+        - storage_groups
+        - masking_views
 
-- name: "Gather only storage_groups and masking_views facts"
-  dellemc_pmax_gather_facts:
-    unispherehost: "{{unispherehost}}"
-    universion: "{{universion}}"
-    verifycert: "{{verifycert}}"
-    user: "{{user}}"
-    password: "{{password}}"
-    array_id: "{{array_id}}"
-    gather_subset:
-      - storage_groups
-      - masking_views
-- debug: var=dellemc_pmax_facts
 '''
 RETURN = r'''
 dellemc_pmax_facts:
@@ -157,7 +162,14 @@ class Dellpmax_Gather_Facts(object):
                     'name': 'volume'
                 },
             },
-        }
+            'storage_group_demand': {
+                'method': self.dellemc.get_storage_group_demand_report,
+                'kwargs': {
+
+                },
+                },
+            }
+
     def generic_get_object_facts(self, name):
         ''' Generic Function to gather list of object types and get the details
          and return the dictionary of entries '''
