@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # Copyright: (C) 2018, DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
+# Author(s): Olivier Carminati <olivier.carminati@bpce-it.fr>
+# Author(s): Julien Brusset <julien.brusset.prestataire@bpce-it.fr>
 # GNU General Public License v3.0+ (see COPYING
 # or https://www.gnu.org/licenses/gpl-3.0.txt)
 
@@ -19,6 +21,8 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
+  - "Olivier Carminati (@ocarm)"
+  - "Julien Brusset (@jbrt)"
 short_description: "Storage group Control Module for Dell EMC PowerMax or 
 VMAX All Flash Arrays, This module can create or delete storage groups and 
 manipulate size and number of volumes given in volume requests list. volume 
@@ -49,6 +53,9 @@ options:
       and PowerMAX NVMe Arrays running PowerMAX OS 5978 and above.  Default is
       set to Diamond, but user can override this by setting a different value."
     required: false
+  compression:
+    description:
+      - "Set the compression on the Storage Group to create"
   unispherehost:
     description:
       - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
@@ -135,6 +142,7 @@ EXAMPLES = '''
       sgname: "Ansible_SG"
       slo: "Diamond"
       luns: "{{ lun_request }}"
+      compression: true
       state: present
 #!/usr/bin/env ansible-playbook
 ---
@@ -303,14 +311,14 @@ class DellEmcStorageGroup(object):
         self.argument_spec = dellemc_pmax_argument_spec()
         self.argument_spec.update(dict(
             sgname=dict(type='str', required=True),
-            slo=dict(type='str',choices=['Diamond','Platinum', 'Gold',
-                                         'Silver','Bronze','None'],
-                     required=False),
+            slo=dict(type='str', choices=['Diamond', 'Platinum', 'Gold',
+                                          'Silver', 'Bronze', 'None'],
+                     required=True),
             luns=dict(type='list', required=False),
             state=dict(type='str', choices=['present', 'absent'],
-                       required=True)
-        )
-        )
+                       required=True),
+            compression=dict(type='bool', required=False)
+        ))
 
         self.module = AnsibleModule(argument_spec=self.argument_spec)
         self.conn = pmaxapi(self.module)
@@ -328,12 +336,16 @@ class DellEmcStorageGroup(object):
             }
         }
         try:
-            self.conn.provisioning.modify_storage_group(
-                storagegroup=self.module.params['sgname'], payload=payload)
+            self.conn.provisioning.\
+                modify_storage_group(storagegroup=self.module.params['sgname'],
+                                     payload=payload)
             changed = True
+
         except Exception:
             changed = False
-        return changed
+
+        finally:
+            return changed
 
     def sg_lunlist(self):
         """
@@ -343,7 +355,7 @@ class DellEmcStorageGroup(object):
         sg_lunlist = self.conn.provisioning.get_volume_list(
             filters={'storageGroupId': self.module.params['sgname']})
         lunsummary = []
-        if len(sg_lunlist) > 0:
+        if sg_lunlist:
             for lun in sg_lunlist:
                 lundetails = self.conn.provisioning.get_volume(lun)
                 sglun = {}
@@ -390,7 +402,7 @@ class DellEmcStorageGroup(object):
             lunsummary.append(sglun)
         current_config = self.unique_and_count(lunsummary)
         for i in current_config:
-            i['num_vols']=i.pop('count')
+            i['num_vols'] = i.pop('count')
 
         return current_config
 
@@ -419,27 +431,37 @@ class DellEmcStorageGroup(object):
                 names.append(lun_request_name['vol_name'])
 
         if self.module.params['sgname'] not in sglist:
-            self.conn.provisioning.create_storage_group(
-                srp_id="SRP_1",
-                sg_id=self.module.params[
-                    'sgname'],
-                slo=self.module.params[
-                    'slo'])
+            # In case of compressed SG requested, we put the compression flag
+            # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
+            if 'compression' in self.module.params:
+                _compression = False if self.module.params['compression'] else True
+                self.conn.provisioning.\
+                    create_storage_group(srp_id='SRP_1',
+                                         sg_id=self.module.params['sgname'],
+                                         slo=self.module.params['slo'],
+                                         do_disable_compression=_compression)
+            else:
+                self.conn.provisioning.\
+                    create_storage_group(srp_id='SRP_1',
+                                         sg_id=self.module.params['sgname'],
+                                         slo=self.module.params['slo'])
+
             changed = True
             message = "Empty Storage Group Created"
-            if len(playbook_request) > 0:
+
+            if playbook_request:
                 for lun in playbook_request:
-                    self.conn.provisioning.add_new_vol_to_storagegroup(
-                        sg_id=self.module.params['sgname'], cap_unit="GB",
-                        num_vols=lun[
-                            'num_vols'],
-                        vol_size=lun['cap_gb'],
-                        vol_name=lun['vol_name'],create_new_volumes=False)
+                    self.conn.provisioning.\
+                        add_new_vol_to_storagegroup(sg_id=self.module.params['sgname'],
+                                                    cap_unit="GB",
+                                                    num_vols=lun['num_vols'],
+                                                    vol_size=lun['cap_gb'],
+                                                    vol_name=lun['vol_name'],
+                                                    create_new_volumes=False)
                 message = "New Storage Group Created and Volumes Added"
         # If the storage group exists, need to check if the volume
         # configuration and size matches the playbook
-        elif self.module.params['sgname'] in sglist and len(playbook_request) \
-                > 0:
+        elif self.module.params['sgname'] in sglist and playbook_request:
             message = self.check_volume_changes()
 
         lunsummary = self.sg_lunlist()
@@ -453,7 +475,7 @@ class DellEmcStorageGroup(object):
         result = {'state': 'info', 'changed': changed}
 
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                              **result )
+                              **result)
 
     def check_volume_changes(self):
         changed = False
@@ -469,8 +491,9 @@ class DellEmcStorageGroup(object):
         sg_summary = self.conn.provisioning.get_storage_group(
                           storage_group_name=self.module.params['sgname'])
 
-        if sg_summary['num_of_vols'] == 0 and sg_summary['type'] == \
-                'Standalone':
+        if sg_summary['num_of_vols'] == 0 \
+                and sg_summary['type'] == 'Standalone':
+
             for request in self.module.params['luns']:
                 self.conn.provisioning.add_new_vol_to_storagegroup(
                     sg_id=self.module.params['sgname'],
@@ -478,6 +501,7 @@ class DellEmcStorageGroup(object):
                     num_vols=request['num_vols'],
                     vol_size=request['cap_gb'],
                     vol_name=request['vol_name'])
+
         sglunnames = []
         for lunname in current:
             sglunnames.append(lunname['vol_name'].upper())
@@ -552,7 +576,7 @@ class DellEmcStorageGroup(object):
                                                       "for this operation " +
                                                       str(currentlunset) +
                                                       "playbook is trying " +
-                                                          str(request),
+                                                      str(request),
                                                   changed=changed)
 
         lunsummary = self.sg_lunlist()
@@ -580,9 +604,9 @@ class DellEmcStorageGroup(object):
                 # checking list of luns each volume identifer will be
                 # checked to see if it will be resized
             if volname == existinglun['vol_name']:
-                self.conn.provisioning.extend_volume(
-                            new_size=newsize,
-                            device_id=existinglun['volumeId'])
+                self.conn.provisioning.\
+                    extend_volume(new_size=newsize,
+                                  device_id=existinglun['volumeId'])
 
     def delete_sg(self):
         """
@@ -594,10 +618,11 @@ class DellEmcStorageGroup(object):
         sglist = self.conn.provisioning.get_storage_group_list()
         message = "Resource already in the requested state"
         if self.module.params['sgname'] in sglist:
-            sgmaskingviews = \
-                self.conn.provisioning.get_masking_views_from_storage_group(
+            sgmaskingviews = self.conn.provisioning.\
+                get_masking_views_from_storage_group(
                     storagegroup=self.module.params['sgname'])
-            if len(sgmaskingviews) == 0:
+
+            if not sgmaskingviews:
                 # Remove volume label name before deleting storage group
                 lunlist = self.sg_lunlist()
                 for lun in lunlist:
@@ -618,6 +643,7 @@ class DellEmcStorageGroup(object):
                     storagegroup_id=self.module.params['sgname'])
                 changed = True
                 message = "Delete Operation Completed"
+
             else:
                 message = "Storage Group is Part of a Masking View"
         sglistafter = self.conn.provisioning.get_storage_group_list()
