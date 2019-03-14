@@ -144,12 +144,10 @@ class DellEmcCascadeStorageGroup(object):
             parent_sg=dict(type='str', required=True),
             child_sg_list=dict(type='list', required=True),
             parent_state=dict(type='str', choices=['present', 'absent'],
-                       required=True),
-            child_state=dict(type='str', choices=['present',
-                                                  'absent'],
-                       required=True)
-        )
-        )
+                              required=True),
+            child_state=dict(type='str', choices=['present', 'absent'],
+                             required=True)))
+
         self.module = AnsibleModule(argument_spec=self.argument_spec)
         self.changed = False
         self.conn = pmaxapi(self.module)
@@ -157,50 +155,71 @@ class DellEmcCascadeStorageGroup(object):
         self.sglist = self.conn.provisioning.get_storage_group_list()
 
     def add_child_sg(self):
-        message = "Changes Successful"
-        error_message =""
-        for child in self.module.params['child_sg_list']:
-            try:
-                self.conn.provisioning.add_child_sg_to_parent_sg(
-                    child_sg=child, parent_sg=self.parent_sg)
-                self.changed = True
-            except Exception:
-                error_message = error_message + child + " "
-        if error_message != "":
-            message = "Problem adding the following child storage group(s) " \
-                      + error_message
+        message = ""
+        error_message = ""
         sgdetails = self.conn.provisioning.get_storage_group(
-            storage_group_name =self.parent_sg)
+            storage_group_name=self.parent_sg)
+
+        for child in self.module.params['child_sg_list']:
+            if not sgdetails.get("child_storage_group") or \
+                    child not in sgdetails.get("child_storage_group"):
+                try:
+                    self.conn.provisioning.add_child_sg_to_parent_sg(
+                        child_sg=child, parent_sg=self.parent_sg)
+                    self.changed = True
+                    message += "{} added. ".format(child)
+
+                except Exception:
+                    error_message += "{} ".format(child)
+
+        if error_message != "":
+            message = "Problem adding the following child storage group(s) {}"\
+                .format(error_message)
+            self.module.fail_json(msg=message, changed=self.changed)
+
+        if not message:
+            message = "No change made. Already in that state"
+        sgdetails = self.conn.provisioning.get_storage_group(
+            storage_group_name=self.parent_sg)
         facts = ({'storage_group_details': sgdetails, 'message': message})
         result = {'state': 'info', 'changed': self.changed}
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
                               **result)
 
     def remove_child_sg(self):
-        message = "Changes Successful"
-        error_message =""
+        message = ""
+        error_message = ""
         parent_sg_detail = self.conn.provisioning.get_storage_group(
             self.parent_sg)
         if parent_sg_detail["num_of_child_sgs"] > len(self.module.params[
-                                                           'child_sg_list'])\
-                or parent_sg_detail["num_of_masking_views"] == 0 :
+                                                          'child_sg_list']) \
+                or parent_sg_detail["num_of_masking_views"] == 0:
             for child in self.module.params['child_sg_list']:
                 try:
-                    self.conn.provisioning.remove_child_sg_from_parent_sg(
-                        child_sg=child, parent_sg=self.parent_sg)
-                    self.changed = True
+                    if child in parent_sg_detail.get("child_storage_group"):
+                        self.conn.provisioning.remove_child_sg_from_parent_sg(
+                            child_sg=child, parent_sg=self.parent_sg)
+                        self.changed = True
+                        message += "{} removed. ".format(child)
+
                 except Exception:
-                    error_message = error_message + child
+                    error_message += "{} ".format(child)
         else:
             message = "Unable to remove Child Storage groups, at least one " \
-                      "child storage group must exist if parent is part of a " \
+                      "child storage group must exist if parent is part of a "\
                       "Masking view"
-        if error_message != "":
-            message = "Problem adding the following child storage group(s) " \
-                      + error_message
+            self.module.fail_json(msg=message, changed=self.changed)
 
-        sgdetails = self.conn.provisioning.get_storage_group(
-            storage_group_name =self.parent_sg)
+        if error_message:
+            message = "Problem removing the following child storage group(s)" \
+                      " {}".format(error_message)
+            self.module.fail_json(msg=message, changed=self.changed)
+
+        if not message:
+            message = "No change made. Already in that state."
+
+        sgdetails = self.conn.provisioning.\
+            get_storage_group(storage_group_name=self.parent_sg)
         facts = ({'storage_group_details': sgdetails, 'message': message})
         result = {'state': 'info', 'changed': self.changed}
         self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
@@ -211,32 +230,31 @@ class DellEmcCascadeStorageGroup(object):
         child_message = "Specified Child Storage Group(s) do not exist "
         for child in self.module.params['child_sg_list']:
             if child not in self.sglist:
-                child_message = child_message + \
-                          child\
-                          + " "
+                child_message += "{} ".format(child)
                 child_exists = False
+
         if not child_exists:
-            self.module.exit_json(msg=child_message, changed=self.changed)
+            self.module.fail_json(msg=child_message, changed=self.changed)
         # prechecks passed.  Module can now create cascaded relationship
 
         if self.parent_sg in self.sglist:
             parent_sg_detail = self.conn.provisioning.get_storage_group(
                 self.parent_sg)
-            if parent_sg_detail["type"] == "Standalone" and parent_sg_detail[
-                  "num_of_vols"] == 0:
+            if parent_sg_detail["type"] == "Standalone" and \
+                    parent_sg_detail["num_of_vols"] == 0:
                 self.add_child_sg()
             elif parent_sg_detail["type"] == "Parent":
                 self.add_child_sg()
         else:
             try:
-                self.conn.provisioning.create_storage_group(srp_id="None",
-                                                        slo="None",
-                                                        sg_id=self.parent_sg)
-                self.changed=True
+                self.conn.provisioning. \
+                    create_storage_group(srp_id="None",slo="None",
+                                         sg_id=self.parent_sg)
+                self.changed = True
                 self.add_child_sg()
             except Exception:
-                self.module.exit_json(msg="Problem creating Parent storage "
-                                          "group", changed = self.changed)
+                self.module.fail_json(msg="Problem creating Parent storage "
+                                          "group", changed=self.changed)
 
     def delete_sg(self):
         message = "Resource already in the requested state"
@@ -250,8 +268,8 @@ class DellEmcCascadeStorageGroup(object):
                 message = "Unable to delete Parent Storage Group check if " \
                           "it is Part of a Masking View before attempting " \
                           "to delete"
-        else:
-            self.module.exit_json(msg=message,changed=self.changed)
+                self.module.fail_json(msg=message, changed=self.changed)
+
         sglistafter = self.conn.provisioning.get_storage_group_list()
         facts = ({'storagegroups': sglistafter, 'message': message})
         result = {'state': 'info', 'changed': self.changed}
