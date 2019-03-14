@@ -72,28 +72,28 @@
   - name: "Create Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: present
   - name: "Add Redo Volume"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ lun_request_2 }}"
       state: present
   - name: "Add additional Data Volume"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ lun_request_3 }}"
       state: present
   - name: "Add additional Data Volume"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ lun_request_4 }}"
       state: present
@@ -101,7 +101,7 @@
   error"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ subset_luns }}"
       state: present
@@ -109,42 +109,94 @@
     # Expect to pass but return current configuration, no change
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ empty_lun_request }}"
       state: present
   - name: "Change SLO to bronze"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Bronze"
       luns: "{{ lun_request_4 }}"
       state: present
   - name: "Resize luns"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Bronze"
       luns: "{{ lun_request_5 }}"
       state: present
   - name: "Resize and add volumes"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Bronze"
       luns: "{{ lun_request_6 }}"
       state: present
   - name: "Delete Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: absent
   - name: "Create Empty Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_SG"
+      sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
       luns: "{{ empty_lun_request }}"
       state: present
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
+  - name: "New SG With Compression"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+      no_compression: False
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: absent
+# Compression Checks
+  - name: "New SG No Compression"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+      no_compression: True
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: absent
+  - name: "New SG With Compression"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: absent
