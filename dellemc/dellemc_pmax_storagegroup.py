@@ -53,9 +53,11 @@ options:
       and PowerMAX NVMe Arrays running PowerMAX OS 5978 and above.  Default is
       set to Diamond, but user can override this by setting a different value."
     required: false
-  compression:
+  no_compression:
     description:
-      - "Set the compression on the Storage Group to create"
+      - "Set the compression on the Storage Group at creation time, 
+      to disable compression set this to true"
+    required: false
   unispherehost:
     description:
       - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
