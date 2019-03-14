@@ -317,7 +317,7 @@ class DellEmcStorageGroup(object):
             luns=dict(type='list', required=False),
             state=dict(type='str', choices=['present', 'absent'],
                        required=True),
-            compression=dict(type='bool', required=False)
+            no_compression=dict(type='bool', required=False)
         ))
 
         self.module = AnsibleModule(argument_spec=self.argument_spec)
@@ -432,20 +432,25 @@ class DellEmcStorageGroup(object):
 
         if self.module.params['sgname'] not in sglist:
             # In case of compressed SG requested, we put the compression flag
-            # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
-            if 'compression' in self.module.params:
-                _compression = False if self.module.params['compression'] else True
-                self.conn.provisioning.\
-                    create_storage_group(srp_id='SRP_1',
-                                         sg_id=self.module.params['sgname'],
-                                         slo=self.module.params['slo'],
-                                         do_disable_compression=_compression)
+            # at ON. Warning: slo must be present for that option can works
+            # (cf. PyU4V)
+            if self.module.params['no_compression']:
+                    self.conn.provisioning.create_storage_group(srp_id='SRP_1',
+                                                                sg_id=
+                                                                self.module.params[
+                                                                    'sgname'],
+                                                                slo=
+                                                                self.module.params[
+                                                                    'slo'],
+                                                                do_disable_compression=self.module.params['no_compression'])
             else:
-                self.conn.provisioning.\
-                    create_storage_group(srp_id='SRP_1',
-                                         sg_id=self.module.params['sgname'],
-                                         slo=self.module.params['slo'])
-
+                self.conn.provisioning.create_storage_group(srp_id='SRP_1',
+                                                            sg_id=
+                                                            self.module.params[
+                                                                'sgname'],
+                                                            slo=
+                                                            self.module.params[
+                                                                'slo'])
             changed = True
             message = "Empty Storage Group Created"
 
@@ -526,7 +531,7 @@ class DellEmcStorageGroup(object):
                     num_vols=request['num_vols'],
                     vol_size=request['cap_gb'],
                     vol_name=request['vol_name'].upper())
-                message = message + "Volumes Added"
+                message = "Volumes Added"
                 changed = True
 
             else:
@@ -639,10 +644,15 @@ class DellEmcStorageGroup(object):
                                 }},
                             "executionOption": "ASYNCHRONOUS"
                         })
-                self.conn.provisioning.delete_storagegroup(
+                try:
+                    self.conn.provisioning.delete_storagegroup(
                     storagegroup_id=self.module.params['sgname'])
-                changed = True
-                message = "Delete Operation Completed"
+                    changed = True
+                    message = "Delete Operation Completed"
+                except Exception:
+                    message = "Unable to Delete Storage Group, check that it " \
+                              "is not a child SG, use cascadedsg module to " \
+                              "remove child from parent before delete"
 
             else:
                 message = "Storage Group is Part of a Masking View"
