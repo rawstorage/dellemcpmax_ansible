@@ -1,0 +1,202 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: "Provision a new storage group"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{   user  }}"
+      verifycert : "{{ verifycert }}"
+# Each item will be treated as a request for volumes of the same size
+# volume name must be unique per request, all sizes are GB values.  A
+# request can have multiple volumes with the same name, however module
+# will not run if it detects two requests with same name.  This is self
+# imposed restriction to make idempotent & easier for change tracking.
+    lun_request :
+      - num_vols : 1
+        cap_gb: 1
+        vol_name: "DATA"
+    # Lun Request Adding New Volumes with REDO Label
+    lun_request_2 :
+      - num_vols : 1
+        cap_gb: 1
+        vol_name: "DATA"
+      - num_vols : 1
+        cap_gb: 1
+        vol_name: "REDO"
+    # increased volume count for data
+    lun_request_3 :
+      - num_vols : 2
+        cap_gb: 1
+        vol_name: "DATA"
+      - num_vols : 1
+        cap_gb: 1
+        vol_name: "REDO"
+    # add addition volume with existing label
+    lun_request_4 :
+      - num_vols : 2
+        cap_gb: 1
+        vol_name: "DATA"
+      - num_vols : 1
+        cap_gb: 1
+        vol_name: "REDO"
+    # resize volumes with redo label
+    lun_request_5 :
+      - num_vols : 2
+        cap_gb: 1
+        vol_name: "DATA"
+      - num_vols : 1
+        cap_gb: 2
+        vol_name: "REDO"
+    # resize and add volumes
+    lun_request_6:
+    - num_vols: 3
+      cap_gb: 2
+      vol_name: "DATA"
+    - num_vols: 1
+      cap_gb: 2
+      vol_name: "REDO"
+    subset_luns:
+      - num_vols : 2
+        cap_gb: 1
+        vol_name: "DATA"
+    empty_lun_request:
+  tasks:
+  - name: "Create Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+  - name: "Add Redo Volume"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request_2 }}"
+      state: present
+  - name: "Add additional Data Volume"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request_3 }}"
+      state: present
+  - name: "Add additional Data Volume"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request_4 }}"
+      state: present
+  - name: "Attempt Change on subset volume- expect to exit unchanged with
+  error"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ subset_luns }}"
+      state: present
+  - name: "Empty Lun Request"
+    # Expect to pass but return current configuration, no change
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+  - name: "Change SLO to bronze"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Bronze"
+      luns: "{{ lun_request_4 }}"
+      state: present
+  - name: "Resize luns"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Bronze"
+      luns: "{{ lun_request_5 }}"
+      state: present
+  - name: "Resize and add volumes"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Bronze"
+      luns: "{{ lun_request_6 }}"
+      state: present
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
+  - name: "Create Empty Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
+  - name: "New SG With Compression"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+      no_compression: False
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: absent
+# Compression Checks
+  - name: "New SG No Compression"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+      no_compression: True
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: absent
+  - name: "New SG With Compression"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: present
+  - name: "Delete Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ empty_lun_request }}"
+      state: absent

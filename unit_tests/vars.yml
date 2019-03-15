@@ -1,0 +1,8 @@
+---
+# Variables file 'vars.yml' in the same folder as the playbook
+array_id: "12DigitSerialNumber"
+password: "smc"
+unispherehost: "IPAddress"
+universion: "90"
+user: "smc"
+verifycert: false

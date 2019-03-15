@@ -1,0 +1,51 @@
+---
+- name: "Port Group Unit Tests"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+  - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{ array_id }}"
+      password: "{{ password }}"
+      unispherehost: "{{ unispherehost }}"
+      universion: "{{ universion }}"
+      user: "{{   user  }}"
+      verifycert: "{{ verifycert }}"
+  tasks:
+  - name: "Create New Port Group and add ports"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "Ansible_PG"
+      array_ports:
+      - FA-1D:4
+      - FA-2D:4
+      state: present
+      port_state: in_pg
+# adds the specified port to the port group
+  - name: "Remove ports"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "Ansible_PG2"
+      array_ports:
+      - FA-2D:8
+      state: present
+      port_state: in_pg
+# Removes the specified port from the port group
+  - name: "Remove ports"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "Ansible_PG2"
+      array_ports:
+      - FA-2D:8
+      state: present
+      port_state: out_of_pg
+  - name: "Delete portgroup"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "Ansible_PG2"
+      array_ports:
+      - FA-2D:8
+      state: absent
+      port_state: out_of_pg

@@ -1,0 +1,155 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: "Testing cascaded groups"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+  - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{ array_id }}"
+      password: "{{ password }}"
+      unispherehost: "{{ unispherehost }}"
+      universion: "{{ universion }}"
+      user: "{{   user  }}"
+      verifycert: "{{ verifycert }}"
+
+    parent_sg: "CSG_PARENT"
+    child1: "SG_CHILD1"
+    child2: "SG_CHILD2"
+    child_that_dont_exist: "XSDFGHTPGHJK"
+    lun_request:
+
+  tasks:
+  - name: "Create Child Storage Group 1"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "SG_CHILD1"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+  - name: "create Child Storage Group 2"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "SG_CHILD2"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+  - name: "Create Storage Group"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+  - name: "Create Cascaded {{ parent_sg }} with {{ child1 }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      child_sg_list:
+      - "{{ child1 }}"
+      parent_state: present
+      child_state: present
+  - debug: var=storagegroup_detail
+
+  - name: " Add {{ child2 }} to  {{ parent_sg }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      child_sg_list:
+      - "{{ child2 }}"
+      parent_state: present
+      child_state: present
+  - debug: var=storagegroup_detail
+
+  - name: " Testing idempotent :  Add {{ child2 }} to  {{ parent_sg }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      child_sg_list:
+      - "{{ child2 }}"
+      parent_state: present
+      child_state: present
+  - debug: var=storagegroup_detail
+
+  - name: " Remove {{ child2 }} to  {{ parent_sg }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      child_sg_list:
+      - "{{ child2 }}"
+      parent_state: present
+      child_state: absent
+  - debug: var=storagegroup_detail
+
+  - name: "Testing idempotent :  Remove {{ child2 }} to  {{ parent_sg }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      child_sg_list:
+      - "{{ child2 }}"
+      parent_state: present
+      child_state: absent
+  - debug: var=storagegroup_detail
+
+  - name: "Deleting parent sg {{ parent_sg }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      parent_state: absent
+      child_state: absent
+  - debug: var=storagegroup_detail
+
+  - name: "Testing idempotent : Deleting parent sg {{ parent_sg }}"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      parent_state: absent
+      child_state: absent
+  - debug: var=storagegroup_detail
+
+  - name: "Creating with a child that do not exist"
+    dellemc_pmax_cascadedsg:
+      <<: *uni_connection_vars
+      parent_sg: "{{ parent_sg }}"
+      child_sg_list:
+      - "{{ child_that_dont_exist }}"
+      parent_state: present
+      child_state: present
+  - debug: var=storagegroup_detail
+# Cleanup Unit Test created storage groups
+  - name: "Delete Child Storage Group 1"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "SG_CHILD1"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
+
+
+  - name: "Delete Child Storage Group 2"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "SG_CHILD2"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
+
+
+  - name: "Create Child Storage Group 1"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "SG_CHILD1"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: present
+
+
+  - name: "Delete Child Storage Group 2"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "CSG_PARENT"
+      slo: "Diamond"
+      luns: "{{ lun_request }}"
+      state: absent
