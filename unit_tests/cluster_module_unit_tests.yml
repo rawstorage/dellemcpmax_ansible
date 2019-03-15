@@ -1,0 +1,229 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: "Unittest - Create a New HostGroup"
+  connection: local
+  hosts: localhost
+
+  vars_files:
+    - vars.yml
+
+  vars:
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{   user  }}"
+      verifycert : "{{ verifycert }}"
+
+  tasks:
+  #############################
+  # TEST WITHOUT CONSISTENT_LUN
+  #############################
+
+  - name: Creating a new child host number 1
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000cc98ffea2
+        - 1000000cc98ffeb3
+        host_id: "AnsibleChild1"
+        host_type: default
+        consistent_lun: false
+        state: present
+        wwn_state: present
+
+  - name: Creating a new child host number 2
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000cc99ffea4
+        - 1000000cc99ffeb5
+        host_id: "AnsibleChild2"
+        host_type: default
+        consistent_lun: false
+        state: present
+        wwn_state: present
+
+  - name: Creating a new child host number 3
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000cc99ffea6
+        - 1000000cc99ffeb7
+        host_id: "AnsibleChild3"
+        host_type: default
+        consistent_lun: false
+        state: present
+        wwn_state: present
+
+  - name: Creating a host Group with host 1 and 2
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild1
+        - AnsibleChild2
+        state: present
+        host_state: in_cluster
+    register: output
+
+  - debug: var=output
+
+  - name: Adding to Host Group host number 3
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild3
+        state: present
+        host_state: in_cluster
+    register: output
+
+  - debug: var=output
+
+  - name: Removing from Host Group host number 3
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild3
+        state: present
+        host_state: not_in_cluster
+    register: output
+
+  - debug: var=output
+
+  - name: Deleting an Host Group
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild1
+        - AnsibleChild2
+        state: absent
+        host_state: in_cluster
+    register: output
+
+  - debug: var=output
+
+
+
+  #############################
+  # TEST WITH CONSISTENT_LUN
+  #############################
+
+  - name: Creating a new child host number 4 with consitent_lun
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000bc98ffea2
+        - 1000000bc98ffeb3
+        host_id: "AnsibleChild4"
+        host_type: default
+        consistent_lun: true
+        state: present
+        wwn_state: present
+
+  - name: Creating a new child host number 5 with consitent_lun
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000bc99ffea4
+        - 1000000bc99ffeb5
+        host_id: "AnsibleChild5"
+        host_type: default
+        consistent_lun: true
+        state: present
+        wwn_state: present
+
+  - name: Creating a host Group with host 4 and 5
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild4
+        - AnsibleChild5
+        state: present
+        host_state: in_cluster
+    register: output
+
+  - debug: var=output
+
+  - name: Deleting an Host Group
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild1
+        - AnsibleChild2
+        state: absent
+        host_state: in_cluster
+    register: output
+
+  - debug: var=output
+
+
+  #############################
+  # CLEANUP HOSTS
+  #############################
+
+  - name: Deleting child host number 1
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000cc98ffea2
+        - 1000000cc98ffeb3
+        host_id: "AnsibleChild1"
+        host_type: default
+        consistent_lun: false
+        state: absent
+        wwn_state: present
+
+  - name: Deleting child host number 2
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000cc99ffea4
+        - 1000000cc99ffeb5
+        host_id: "AnsibleChild2"
+        host_type: default
+        consistent_lun: false
+        state: absent
+        wwn_state: present
+
+  - name: Deleting child host number 3
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000cc99ffea6
+        - 1000000cc99ffeb7
+        host_id: "AnsibleChild3"
+        host_type: default
+        consistent_lun: false
+        state: absent
+        wwn_state: present
+
+  - name: Deleting child host number 4
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000bc98ffea2
+        - 1000000bc98ffeb3
+        host_id: "AnsibleChild4"
+        host_type: default
+        consistent_lun: false
+        state: absent
+        wwn_state: present
+
+  - name: Deleting child host number 5
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 1000000bc99ffea4
+        - 1000000bc99ffeb5
+        host_id: "AnsibleChild5"
+        host_type: default
+        consistent_lun: false
+        state: absent
+        wwn_state: present
