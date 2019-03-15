@@ -63,7 +63,7 @@ options:
     description:
       - "List of Child Stroage groups to be added or removed from Parent"
     type: list
-    required: false
+    required: True
   parent_state:
     description:
       - "Present or Absent, Absent will delete the parent storage group"
@@ -75,7 +75,6 @@ options:
       from the parent storage group"
     type: string
     required: true
-
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -89,7 +88,6 @@ EXAMPLES = '''
   gather_facts: no
   vars_files:
     - vars.yml
-
   tasks:
     - name: "Create Cascaded Storage Group Relationship"
       dellemc_pmax_cascadedsg:
@@ -171,7 +169,8 @@ class DellEmcCascadeStorageGroup(object):
 
         for child in self._child_sg_list:
             if not self._parent_sg_detail.get("child_storage_group") or \
-                    child not in self._parent_sg_detail.get("child_storage_group"):
+                    child not in self._parent_sg_detail.get(
+                "child_storage_group"):
                 try:
                     self._conn.provisioning.add_child_sg_to_parent_sg(
                         child_sg=child, parent_sg=self._parent_sg)
@@ -179,12 +178,13 @@ class DellEmcCascadeStorageGroup(object):
                     self._message += "{} added. ".format(child)
 
                 except Exception as error:
-                    self._error_message += "Child {}. Error {}. ".format(child, error)
+                    self._error_message += "Child {}. Error {}. ".format(child,
+                                                                         error)
 
         if self._error_message != "":
             self._module.fail_json(
                 msg="Problem adding the following child storage group(s) {}"
-                .format(self._error_message), changed=self._changed)
+                    .format(self._error_message), changed=self._changed)
 
         if not self._message:
             self._message = "No change made. Already in that state"
@@ -192,11 +192,11 @@ class DellEmcCascadeStorageGroup(object):
     def _remove_child_sg(self):
 
         if self._parent_sg_detail["num_of_child_sgs"] > \
-                len(self._child_sg_list)\
+                len(self._child_sg_list) \
                 or self._parent_sg_detail["num_of_masking_views"] == 0:
             for child in self._child_sg_list:
                 try:
-                    if child in self._parent_sg_detail.\
+                    if child in self._parent_sg_detail. \
                             get("child_storage_group"):
                         self._conn.provisioning.remove_child_sg_from_parent_sg(
                             child_sg=child, parent_sg=self._parent_sg)
@@ -204,10 +204,11 @@ class DellEmcCascadeStorageGroup(object):
                         self._message += "{} removed. ".format(child)
 
                 except Exception as error:
-                    self._error_message += "Child {}. Error {}. ".format(child, error)
+                    self._error_message += "Child {}. Error {}. ".format(child,
+                                                                         error)
         else:
             message = "Unable to remove Child Storage groups, at least one " \
-                      "child storage group must exist if parent is part of a "\
+                      "child storage group must exist if parent is part of a " \
                       "Masking view"
             self._module.fail_json(msg=message, changed=self._changed)
 
@@ -222,8 +223,9 @@ class DellEmcCascadeStorageGroup(object):
     def _create_cascaded(self):
 
         if not self._child_sg_list:
-            self._module.fail_json(msg="child_sg_list cannot be empty.", changed=self._changed)
-            
+            self._module.fail_json(msg="child_sg_list cannot be empty.",
+                                   changed=self._changed)
+
         child_exists = True
         child_message = "Specified Child Storage Group(s) do not exist "
         for child in self._child_sg_list:
@@ -291,9 +293,11 @@ class DellEmcCascadeStorageGroup(object):
             sgdetails = self._conn.provisioning.get_storage_group(
                 storage_group_name=self._parent_sg)
         except ResourceNotFoundException:
-            sgdetails = "Storage group {} does not exist".format(self._parent_sg)
+            sgdetails = "Storage group {} does not exist".format(
+                self._parent_sg)
 
-        facts = ({'storage_group_details': sgdetails, 'message': self._message})
+        facts = (
+        {'storage_group_details': sgdetails, 'message': self._message})
         result = {'state': 'info', 'changed': self._changed}
         self._module.exit_json(ansible_facts={'storagegroup_detail': facts},
                                **result)
