@@ -57,7 +57,7 @@
         state: present
         wwn_state: present
 
-  - name: Creation an Host Group with host 1 and 2
+  - name: Creating a host Group with host 1 and 2
     dellemc_pmax_cluster:
         <<: *uni_connection_vars
         cluster_name: "AnsibleCluster"
@@ -137,7 +137,7 @@
         state: present
         wwn_state: present
 
-  - name: Creation an Host Group with host 4 and 5
+  - name: Creating a host Group with host 4 and 5
     dellemc_pmax_cluster:
         <<: *uni_connection_vars
         cluster_name: "AnsibleCluster"
