@@ -507,7 +507,7 @@ class DellEmcStorageGroup(object):
                     cap_unit="GB",
                     num_vols=request['num_vols'],
                     vol_size=request['cap_gb'],
-                    vol_name=request['vol_name'])
+                    vol_name=request['vol_name'],create_new_volumes=False)
 
         sglunnames = []
         for lunname in current:
@@ -532,7 +532,8 @@ class DellEmcStorageGroup(object):
                     cap_unit="GB",
                     num_vols=request['num_vols'],
                     vol_size=request['cap_gb'],
-                    vol_name=request['vol_name'].upper())
+                    vol_name=request['vol_name'].upper(),
+                    create_new_volumes=False)
                 message = "Volumes Added"
                 changed = True
 
@@ -550,7 +551,8 @@ class DellEmcStorageGroup(object):
                                 cap_unit="GB",
                                 num_vols=new_vols,
                                 vol_size=request['cap_gb'],
-                                vol_name=request['vol_name'])
+                                vol_name=request['vol_name'],
+                                create_new_volumes=False)
                             message = message + "Volumes Added"
                             changed = True
                         elif request['num_vols'] == currentlunset[
@@ -573,7 +575,8 @@ class DellEmcStorageGroup(object):
                                 cap_unit="GB",
                                 num_vols=new_vols,
                                 vol_size=request['cap_gb'],
-                                vol_name=request['vol_name'])
+                                vol_name=request['vol_name'],
+                                create_new_volumes=False)
                             changed = True
                             message = "volumes added and resized"
                         elif request['num_vols'] < currentlunset['num_vols']:
