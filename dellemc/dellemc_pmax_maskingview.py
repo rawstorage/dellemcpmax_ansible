@@ -1,9 +1,12 @@
 #!/usr/bin/python
 # Copyright (C) 2018 DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
+# Author(s): Julien Brusset <julien.brusset.prestataire@bpce-it.fr>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -16,6 +19,7 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
+  - "Julien Brusset (@jbrt)"
 short_description: "Create a new masking view on Dell EMC PowerMax or VMAX All
 Flash"
 version_added: "2.8"
@@ -63,7 +67,6 @@ options:
     description:
       - "32 Character string representing masking view name, name must not
       already be in use"
-
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -97,76 +100,104 @@ RETURN = r'''
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
-
 class DellEmcPmaxMaskingview(object):
+    """
+    Module for creating or deleting a Masking View
+    """
 
     def __init__(self):
-        self.argument_spec = dellemc_pmax_argument_spec()
-        self.argument_spec.update(dict(
+        self._argument_spec = dellemc_pmax_argument_spec()
+        self._argument_spec.update(dict(
             sgname=dict(type='str', required=True),
             host_or_cluster=dict(type='str', required=True),
             portgroup_id=dict(type='str', required=True),
             maskingview_name=dict(type='str', required=True),
-            state=dict(type='str', choices=['present', 'absent'],
-                       required=True)
-        )
-        )
+            state=dict(type='str', choices=['present', 'absent'], required=True)
+        ))
 
-        self.module = AnsibleModule(argument_spec=self.argument_spec)
+        self._module = AnsibleModule(argument_spec=self._argument_spec)
+        self._conn = pmaxapi(self._module)
+        self._changed = False
+        self._message = ''
 
-        self.conn = pmaxapi(self.module)
+        self._portgroup_id = self._module.params['portgroup_id']
+        self._maskingview_name = self._module.params['maskingview_name']
+        self._host_or_cluster = self._module.params['host_or_cluster']
+        self._sgname = self._module.params['sgname']
 
     def create_maskingview(self):
-        changed = False
-        mv_details = "Nothing to display"
-        # Check Masking
+        """
+        Creating a Masking View
+        :return: (None)
+        """
         try:
-            self.conn.provisioning.create_masking_view_existing_components(
-                        port_group_name=self.module.params['portgroup_id'],
-                        masking_view_name=self.module.params['maskingview_name'],
-                        host_name=self.module.params['host_or_cluster'],
-                        storage_group_name=self.module.params['sgname'])
-            changed = True
-            message = "Masking view successfully created"
-            mv_details = self.conn.provisioning.get_masking_view(
-                masking_view_name=self.module.params[
-                                                      'maskingview_name'])
+            self._conn.provisioning. \
+                create_masking_view_existing_components(
+                                        port_group_name=self._portgroup_id,
+                                        masking_view_name=self._maskingview_name,
+                                        host_name=self._host_or_cluster,
+                                        storage_group_name=self._sgname)
+            self._changed = True
+            self._message = "Masking view {} successfully created".\
+                            format(self._maskingview_name)
 
-        except Exception:
-            message = "Check input parameters, Error Creating Masking view"
-        facts = ({'message': message,
-                  'mv_details': mv_details})
-        result = {'state': 'info', 'changed': changed}
-        self.module.exit_json(ansible_facts={'maskingview_detail': facts},
-                          **result)
+        except Exception as error:
+            self._module.fail_json(msg="Check input parameters, Error Creating "
+                                       "Masking view: {}".format(error))
 
     def delete_maskingview(self):
-        changed = False
-        mv_details = ""
-        message = ""
+        """
+        Deleting a Masking View
+        :return: (None)
+        """
         try:
-            self.conn.provisioning.delete_masking_view(
-                maskingview_name=self.module.params['maskingview_name'])
-            changed = True
-        except Exception:
-            message = "Unable to Delete the specified Masking view"
-        facts = ({'message': message,
-                  'mv_details': mv_details})
-        result = {'state': 'info', 'changed': changed}
-        self.module.exit_json(ansible_facts={'maskingview_detail': facts},
-                          **result)
+            self._conn.provisioning.\
+                delete_masking_view(maskingview_name=self._maskingview_name)
+            self._changed = True
+            self._message = "Masking view {} successfully deleted".\
+                            format(self._maskingview_name)
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to Delete the specified Masking"
+                                       " view: {}".format(error))
 
     def apply_module(self):
-        if self.module.params['state'] == "present":
-            self.create_maskingview()
-        elif self.module.params['state'] == 'absent':
+        """
+        Masking View logic
+        :return: (None)
+        """
+        facts = {}
+
+        # Case 1 - Create a masking view
+        if self._module.params['state'] == "present":
+            # Check if MaskingView exists
+            if self._maskingview_name in \
+                    self._conn.provisioning.get_masking_view_list():
+                facts = ({'message': "MaskingView {} already "
+                                     "exists".format(self._maskingview_name)})
+            # If not, create it
+            else:
+                self.create_maskingview()
+                mv_details = self._conn.provisioning. \
+                    get_masking_view(masking_view_name=self._maskingview_name)
+                facts = ({'message': self._message, 'mv_details': mv_details})
+
+        # Case 2 - Delete an existing masking view
+        elif self._module.params['state'] == 'absent':
             self.delete_maskingview()
+            facts = ({'message': self._message})
+
+        result = {'state': 'info', 'changed': self._changed}
+        self._module.exit_json(ansible_facts={'maskingview_detail': facts},
+                               **result)
 
 
 def main():
-
-    d = DellEmcPmaxMaskingview()
-    d.apply_module()
+    """
+    Main function
+    :return:
+    """
+    DellEmcPmaxMaskingview().apply_module()
 
 
 if __name__ == '__main__':
