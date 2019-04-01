@@ -1,0 +1,109 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: "Volume Unit Tests"
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+  - vars.yml
+  vars:
+    input: &uni_connection_vars
+      array_id: "{{ array_id }}"
+      password: "{{ password }}"
+      unispherehost: "{{ unispherehost }}"
+      universion: "{{ universion }}"
+      user: "{{   user  }}"
+      verifycert: "{{ verifycert }}"
+
+    # Prerequisites
+
+    vol_id1: "0004F"  # Should be NON RDF replicated
+    vol_id2: "00050"  # Should be RDF replicated
+    sg_name: "SG_FOR_TESTING"  # SG where volumes should be added/removed
+    resize: 2  # Target resize size
+    label: "AnsibleVeryUsefulLabel"
+
+  tasks:
+  - name: "Resize volume {{ vol_id1 }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+          cap_gb: "{{ resize }}"
+  - debug: var=volume_detail
+
+  - name: "Relabeling volumes {{ vol_id1 }} and {{ vol_id2 }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+          vol_name: "{{ label }}"
+        - device_id: "{{ vol_id2 }}"
+          vol_name: "{{ label }}"
+  - debug: var=volume_detail
+
+  - name: "Adding volumes {{ vol_id1 }} and {{ vol_id2 }} to {{ sg_name }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      sgname:
+        - "{{ sg_name }}"
+      in_sg: "present"
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+        - device_id: "{{ vol_id2 }}"
+  - debug: var=volume_detail
+
+  - name: "(Trying idempotency) Adding volumes {{ vol_id1 }} and {{ vol_id2 }} to {{ sg_name }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      sgname:
+        - "{{ sg_name }}"
+      in_sg: "present"
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+        - device_id: "{{ vol_id2 }}"
+  - debug: var=volume_detail
+
+  - name: "Removing volumes {{ vol_id1 }} and {{ vol_id2 }} from {{ sg_name }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      sgname:
+        - "{{ sg_name }}"
+      in_sg: "absent"
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+        - device_id: "{{ vol_id2 }}"
+  - debug: var=volume_detail
+
+  - name: "(Trying idempotency) Removing volumes {{ vol_id1 }} and {{ vol_id2 }} from {{ sg_name }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      sgname:
+        - "{{ sg_name }}"
+      in_sg: "absent"
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+        - device_id: "{{ vol_id2 }}"
+  - debug: var=volume_detail
+
+  - name: "Erasing/Freeing volumes {{ vol_id1 }} and {{ vol_id2 }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      freeing: true
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+        - device_id: "{{ vol_id2 }}"
+  - debug: var=volume_detail
+
+  - pause:
+      prompt: "Waiting 5 minutes before deleting devices, estimated time for freeing completion time"
+      minutes: 5
+
+  - name: "Deleting volumes {{ vol_id1 }} and {{ vol_id2 }}"
+    dellemc_pmax_volume:
+      <<: *uni_connection_vars
+      delete: true
+      volumes:
+        - device_id: "{{ vol_id1 }}"
+        - device_id: "{{ vol_id2 }}"
+  - debug: var=volume_detail
