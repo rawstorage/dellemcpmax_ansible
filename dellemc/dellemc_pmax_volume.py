@@ -1,9 +1,14 @@
 #!/usr/bin/python
 # Copyright: (C) 2018, DellEMC
 # Author(s): Paul Martin <paule.martin@dell.com>
+# Author(s): Olivier Carminati <olivier.carminati@bpce-it.fr>
+# Author(s): Julien Brusset <julien.brusset.prestataire@bpce-it.fr>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
+import time
+
+
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -16,17 +21,21 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
+  - "Olivier Carminati (@ocarm)"
+  - "Julien Brusset (@jbrt)"
 short_description: "Simple Module to Modify Volumes that are part of a 
-Strorage group on Dell EMC PowerMax or VMAX All Flash Arrays"
+Strorage group on Dell EMC PowerMax or VMAX All Flash Arrays. Volumes 
+can also be resized, relabeled, erased or deleted"
 version_added: "2.8"
 description:
   - "Module can be used to remove of modify a list of volumes from storage 
-  group.  This module assumes code level 5978 or higher, volumes can not be 
-  part of an SRDF Metro configuration, this restriction may be lifted in a later 
-  release. This module has been tested against UNI 9.0. Every effort has 
-  been made to verify the scripts run with valid input. These modules are a 
-  tech preview."
-module: dellemc_pmax_expandlun
+  group.  This module assumes code level 5978 or higher, volumes can be 
+  part of an SRDF Metro configuration (but not for resizing, but freeing a 
+  volume used in RDF replication is possible. In that case, RDF replication 
+  will be destroyed). This module has been tested against UNI 9.0. Every 
+  effort has been made to verify the scripts run with valid input. These 
+  modules are a tech preview."
+module: dellemc_pmax_volume
 options:
   array_id:
     description:
@@ -52,15 +61,27 @@ options:
   password:
     description:
       - "password for Unisphere user"
-  newcap_gb:
+  volumes:
     description:
-      - "Integer value for the size of volumes In GB. Must be greater than
-      volumes existing size."
+      - "A list of volumes described with ID, desired size (if needed) and label"
     required: true
-  device_id:
+  sgname:
     description:
-      - "Hexidecimal lun ID for VMAX or PowerMax Volume to be Expanded"
-    required: true
+      - "List of SGs name (used for adding or removing TDEVs)"
+    required: false
+  in_sg:
+    description:
+      - "[present|absent] Used with in_sg to define what to do"
+    required: false
+  freeing:
+    description:
+      - "Boolean for erasing or not a list of TDEVs (default: false)"
+    required: false
+  delete:
+    description:
+      - "Boolean for deleting or not a list of TDEVs (default: false). 
+        Freeing needed first."
+    required: false
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -74,222 +95,484 @@ EXAMPLES = '''
   connection: local
   vars_files:
     - vars.yml
-    
-  tasks:
-  - name: Modify Volume Sizes and Labels
-    dellemc_pmax_volume:
-        unispherehost: "{{unispherehost}}"
-        universion: "{{universion}}"
-        verifycert: "{{verifycert}}"
-        user: "{{user}}"
-        password: "{{password}}"
-        array_id: "{{array_id}}"
-        sgname: 'Ansible_SG'
-        in_sg: "Present"
-        volumes:
-          - device_id: "000BB"
-            cap_gb: 5
-            vol_name: "LABEL"
-          - device_id: "000BA"
-            cap_gb: 5
-            vol_name: "LABEL"
-  - debug: var=storagegroup_detail
 
+  tasks:
+  - name: Adding TDEVs into SG
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      sgname: 
+        - 'Ansible_SG'
+      in_sg: "present"
+      volumes:
+        - device_id: "000BB"
+        - device_id: "000BA"
+  - debug: var=storagegroup_detail
+  - name: Removing TDEVs from SG
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      sgname: 
+        - 'Ansible_SG'
+      in_sg: "absent"
+      volumes:
+        - device_id: "000BB"
+        - device_id: "000BA"
+  - debug: var=storagegroup_detail
+  - name: Resize volume
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      volumes:
+        - device_id: "000BB"
+          cap_gb: 6
+  - debug: var=volume_detail
+  - name: Relabeling volumes 
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      volumes:
+        - device_id: "000BB"
+          vol_name: "MYLABEL"
+        - device_id: "000BA"
+          vol_name: "MYLABEL"
+  - debug: var=volume_detail
+  - name: Relabeling AND resizing volumes at the same time 
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      volumes:
+        - device_id: "000BB"
+          vol_name: "MYLABEL"
+          cap_gb: 6
+        - device_id: "000BA"
+          vol_name: "MYLABEL"
+          cap_gb: 6
+  - debug: var=volume_detail
+  - name: Erasing/Freeing volumes
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      freeing: true
+      volumes:
+        - device_id: "000BB"
+        - device_id: "000BA"
+  - debug: var=volume_detail
+  - name: Deleting volumes
+    dellemc_pmax_volume:
+      unispherehost: "{{unispherehost}}"
+      universion: "{{universion}}"
+      verifycert: "{{verifycert}}"
+      user: "{{user}}"
+      password: "{{password}}"
+      array_id: "{{array_id}}"
+      delete: true
+      volumes:
+        - device_id: "000BB"
+        - device_id: "000BA"
+  - debug: var=volume_detail
 '''
 RETURN = '''
 ok: [localhost] => {
-    "storagegroup_detail": {
-        "message": "Volume resized .No changes made to Volume names",
-        "sg_volumes": [
-            {
-                "cap_gb": 5.0,
-                "vol_name": "LABEL",
-                "volumeId": "000BA",
-                "wwn": "60000970000197600156533030304241"
-            },
-            {
-                "cap_gb": 5.0,
-                "vol_name": "LABEL",
-                "volumeId": "000BB",
-                "wwn": "60000970000197600156533030304242"
-            },
-            {
-                "cap_gb": 1.0,
-                "vol_name": "DATA",
-                "volumeId": "000BC",
-                "wwn": "60000970000197600156533030304243"
-            },
-            {
-                "cap_gb": 1.0,
-                "vol_name": "DATA",
-                "volumeId": "000BD",
-                "wwn": "60000970000197600156533030304244"
-            },
-            {
-                "cap_gb": 1.0,
-                "vol_name": "REDO",
-                "volumeId": "000BE",
-                "wwn": "60000970000197600156533030304245"
-            },
-            {
-                "cap_gb": 1.0,
-                "vol_name": "REDO",
-                "volumeId": "000BF",
-                "wwn": "60000970000197600156533030304246"
-            }
-        ],
-        "storagegroup_detail": {
-            "VPSaved": "100.0%",
-            "base_slo_name": "Diamond",
-            "cap_gb": 6.01,
-            "compression": true,
-            "device_emulation": "FBA",
-            "num_of_child_sgs": 0,
-            "num_of_masking_views": 0,
-            "num_of_parent_sgs": 0,
-            "num_of_snapshots": 0,
-            "num_of_vols": 6,
-            "service_level": "Diamond",
-            "slo": "Diamond",
-            "slo_compliance": "STABLE",
-            "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG",
-            "type": "Standalone",
-            "unprotected": true,
-            "vp_saved_percent": 100.0
-        },
-        "storagegroup_name": "Ansible_SG"
+    "volume_detail": {
+        "message": [
+            "000E2 was paired with 0008B(000297800953)",
+            "000E0 freeing launched",
+            "000E2 freeing launched"
+        ]
     }
 }
 '''
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
-
 class DellEmcVolume(object):
+    """
+    Ansible Module for manipulating TDEVs
+    (Resizing, adding/removing to and from SGs, relabeling, deleting)
+    """
 
     def __init__(self):
-        self.argument_spec = dellemc_pmax_argument_spec()
-        self. argument_spec.update(dict(
+        self._argument_spec = dellemc_pmax_argument_spec()
+        self._argument_spec.update(dict(
             volumes=dict(type='list', required=True),
-            sgname=dict(type='str', required=True),
+            sgname=dict(type='list', required=False, default=[]),
             in_sg=dict(type='str', choices=['present', 'absent'],
-                       required=True)))
-        self.module = AnsibleModule(argument_spec=self.argument_spec)
-        self.conn = pmaxapi(self.module)
+                       required=False, ),
+            freeing=dict(type='bool', required=False, default=False),
+            delete=dict(type='bool', required=False, default=False),
+        ))
 
-    def remove_volumes(self):
-        changed = False
-        playbook_luns = self.module.params["volumes"]
-        playbook_volume_ids=[]
-        for volume in playbook_luns:
-            playbook_volume_ids.append(volume['device_id'])
-        sglist = self.conn.provisioning.get_storage_group_list()
-        message = "no changes made, check input parameters"
-        # Check storage group exists
-        if self.module.params['sgname'] in sglist:
-            sg_vols = self.conn.provisioning.get_volume_list(filters={
-                'storageGroupId': self.module.params['sgname']})
-            result = set(sg_vols) >= set(playbook_volume_ids)
-            # make sure all volumes are present in the storage group and that
-            # deleting will not result in an empty storage group.
-            if len(sg_vols) > len(playbook_volume_ids):
-                if result:
-                    for lun in playbook_volume_ids:
-                        self.conn.provisioning.remove_vol_from_storagegroup(sg_id=self.module.params[
-                            'sgname'], vol_id=lun)
-                        message = "Volumes Successfully Removed"
-                        changed = True
+        self._module = AnsibleModule(argument_spec=self._argument_spec)
+        self._conn = pmaxapi(self._module)
+        self._changed = False
+        self._facts = None
+        self._message = []
+
+        # Runs pre-checks
+        self._mode_resizing = False
+        self._modes_pre_checks()
+
+    def _modes_pre_checks(self):
+        """
+        Checking if only one mode are used at a time
+        :return: (None)
+        """
+        # Pre-check in_sg/freeing/delete options cannot be used together
+        params = [bool(self._module.params['in_sg']),
+                  self._module.params['freeing'],
+                  self._module.params['delete']]
+
+        # If no other action than volume to resize of relabel
+        if params.count(True) == 0:
+            self._mode_resizing = True
+
+        # Only one mode could be set at a time
+        if params.count(True) > 1:
+            self._module.fail_json(msg="Only one operation allowed at a time "
+                                       "(in_sg OR freeing OR delete)")
+
+    def _add_volumes(self):
+        """
+        Adding existing TDEVs into existing SG(s)
+        :return: (None)
+        """
+        # First of all, check if SGs exists
+        # If not, it's a problem and we can't go ahead
+        sg_list = self._conn.provisioning.get_storage_group_list()
+        sg_not_exists = False
+        sg_missing = ""
+        for sg in self._module.params['sgname']:
+            if sg not in sg_list:
+                sg_missing += "{} SG doesn't exists".format(sg)
+        if sg_not_exists:
+            self._module.fail_json(msg=sg_missing)
+
+        # Let's launch the main function and add TDEVs into SGs
+        volume_ids = [v['device_id'] for v in self._module.params["volumes"]]
+        for sg in self._module.params['sgname']:
+            sg_vols = self._conn.provisioning. \
+                get_volume_list(filters={'storageGroupId': sg})
+
+            try:
+                for volume in volume_ids:
+                    if volume not in sg_vols:
+                        self._conn.provisioning.add_existing_vol_to_sg(
+                            sg_id=sg,
+                            vol_ids=volume)
+                        self._message.append(
+                            "{} successfully added to {}".format(volume, sg))
+                        self._changed = True
+                    else:
+                        self._message.append(
+                            "{} already in {}".format(volume, sg))
+            except Exception as error:
+                self._module.fail_json(
+                    msg="Unable to add {} to {} ({})".format(volume_ids, sg,
+                                                             error))
+
+        self._facts = ({'message': self._message})
+
+    def _delete_volumes(self):
+        """
+        Delete volumes/TDEVs (must be empty before)
+        :return: (None)
+        """
+        for volume in self._module.params["volumes"]:
+            try:
+                self._conn.provisioning.delete_volume(
+                    device_id=volume["device_id"])
+                self._changed = True
+                self._message.append(
+                    "{} has been deleted".format(volume["device_id"]))
+            except Exception as error:
+                self._module.fail_json(
+                    msg="Unable to delete volume {} ({})".format(
+                        volume["device_id"],
+                        error))
+
+        self._facts = ({'message': self._message})
+
+    def _freeing_volumes(self):
+        """
+        Erasing data from TDEVs (TDEVs must be out of SGs)
+        :return: (None)
+        """
+        # Check if any TDEVs still are in SGs which is not normal.
+        # (CAREFUL: deallocate by API works EVEN IF A VOLUME IS STILL IN A SG)
+        still_in_sg = False
+        for volume in self._module.params["volumes"]:
+            v_details = self._conn.provisioning.get_volume(
+                device_id=volume['device_id'])
+            if 'storageGroupId' in v_details:
+                still_in_sg = True
+                self._message.append(
+                    "{} is still in SG {} (remove it before freeing)".
+                    format(volume['device_id'], v_details['storageGroupId']))
+        if still_in_sg:
+            self._module.fail_json(msg=self._message)
+
+        # First, we need to know if RDF pairs exists and if yes, which volumes
+        # are concerned. These information will be used later to destroy RDF
+        # pairs
+        rdf_mapping = {}
+        sg_prefix = "SG_DeletePair_{}".format(round(time.time()))
+
+        for volume in self._module.params["volumes"]:
+            v_details = self._conn.provisioning.get_volume(
+                device_id=volume['device_id'])
+            if 'rdfGroupId' in v_details:
+                for group in v_details['rdfGroupId']:
+                    if group['rdf_group_number'] not in rdf_mapping:
+                        rdf_mapping[group['rdf_group_number']] = []
+                    rdf_mapping[group['rdf_group_number']].append(
+                        volume['device_id'])
+
+        # If RDF pairs exists, delete them
+        if rdf_mapping:
+            _message = []
+            for rdf_id in rdf_mapping:
+                for volume in rdf_mapping[rdf_id]:
+                    v_details = self._conn.replication.get_rdf_group_volume(
+                        rdf_number=rdf_id,
+                        device_id=volume)
+                    _message.append("{} was paired with {}({})".
+                                    format(volume,
+                                           v_details['remoteVolumeName'],
+                                           v_details['remoteSymmetrixId']))
+
+            for rdf_id in rdf_mapping:
+                sg_name = "{}_{}".format(sg_prefix, rdf_id)
+                try:
+                    self._conn.provisioning. \
+                        create_storage_group(srp_id='SRP_1',
+                                             sg_id=sg_name,
+                                             slo='Diamond')
+                    self._conn.provisioning. \
+                        add_existing_vol_to_sg(sg_id=sg_name,
+                                               vol_ids=rdf_mapping[rdf_id])
+                    self._conn.replication. \
+                        delete_storagegroup_srdf(storagegroup_id=sg_name,
+                                                 rdfg_num=rdf_id)
+                except Exception as error:
+                    self._module.fail_json(
+                        msg="Unable to destroy RDF pairs for "
+                            "devices {} ({})".format(
+                            ", ".join(rdf_mapping[rdf_id]),
+                            error))
+                finally:
+                    self._conn.provisioning.delete_storagegroup(
+                        storagegroup_id=sg_name)
+
+                self._changed = True
+                self._message += _message
+
+        # Finally, let's freeing the list of volumes
+        for volume in self._module.params["volumes"]:
+            try:
+                self._conn.provisioning.deallocate_volume(
+                    device_id=volume['device_id'])
+
+            except Exception as error:
+                if 'device is already in the requested state' not in str(
+                        error):
+                    _msg = "Unable to deallocate volume {}. Deleted pairs: {} ({})". \
+                        format(volume['device_id'], ", ".join(self._message),
+                               error)
+                    self._module.fail_json(msg=_msg)
+
+            self._changed = True
+            self._message.append(
+                "{} freeing launched".format(volume['device_id']))
+
+        self._facts = ({'message': self._message})
+
+    def _relabeling_volumes(self):
+        """
+        Changing label on Volumes/TDEVs
+        :return: (None)
+        """
+        for volume in self._module.params['volumes']:
+            # We try to rename volume only if a 'vol_name' parameter is set into
+            # the given options
+            if 'vol_name' in volume:
+                a_volume = self._conn.provisioning. \
+                    get_volume(device_id=volume['device_id'])
+                # Checks to verify identifier matches the label
+                if 'volume_identifier' in a_volume and volume['vol_name'] == \
+                        a_volume['volume_identifier']:
+                    self._message.append("{} No changes made to label".
+                                         format(volume['device_id']))
+
                 else:
-                    message = "Not All Volumes in the list provided are in " \
-                              "storage group"
-            elif not result:
-                changed = False
-                message = "Check your volume list, not all volumes provided are " \
-                          "part of the specified storage group"
-            elif len(sg_vols) == len(playbook_volume_ids):
-                changed = False
-                message = "Result will remove all volumes from SG"
+                    try:
+                        self._conn.provisioning.rename_volume(
+                            device_id=volume['device_id'],
+                            new_name=volume['vol_name'])
+                    except Exception as error:
+                        self._module.fail_json(msg="Unable to rename {} ({})".
+                                               format(volume['device_id'],
+                                                      error))
+                    self._message.append(
+                        "{} label changed for {}".format(volume['device_id'],
+                                                         volume['vol_name']))
+                    self._changed = True
+        self._facts = ({'message': self._message})
 
-        lunsummary = []
-        for lun in sg_vols:
-            lundetails = self.conn.provisioning.get_volume(lun)
-            # sg_lun_detail_list.append(lundetails)
-            sglun = {}
-            sglun['volumeId'] = lundetails['volumeId']
-            sglun['vol_name'] = lundetails['volume_identifier']
-            sglun['cap_gb'] = lundetails['cap_gb']
-            sglun['wwn'] = lundetails['effective_wwn']
-            lunsummary.append(sglun)
+    def _remove_volumes(self):
+        """
+        Remove Volumes/TDEVs from SG(s)
+        :return: (None)
+        """
+        # First of all, check if SGs exists
+        # If not, it's a problem and we can't go ahead
+        sg_list = self._conn.provisioning.get_storage_group_list()
+        sg_not_exists = False
+        sg_missing = ""
+        for sg in self._module.params['sgname']:
+            if sg not in sg_list:
+                sg_missing += "{} SG doesn't exists".format(sg)
+        if sg_not_exists:
+            self._module.fail_json(msg=sg_missing)
 
-        facts = ({'storagegroup_name': self.module.params['sgname'],
-                  'storagegroup_detail': self.conn.provisioning.get_storage_group(
-                      storage_group_name=self.module.params['sgname']),
-                  'sg_volumes': lunsummary,
-                  'message': message})
-        result = {'state': 'info', 'changed': changed}
+        # Then, we check if the volumes to remove are the last ones into the
+        # SG and if this SG are embedded into a MV. If yes, can't go ahead
+        # because MV with empty SG is not supported
+        volume_ids = [v['device_id'] for v in self._module.params["volumes"]]
+        cant_remove = False
+        cant_remove_msg = ""
+        for sg in self._module.params['sgname']:
+            sg_vols = self._conn.provisioning. \
+                get_volume_list(filters={'storageGroupId': sg})
 
-        self.module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+            if len(sg_vols) == len(volume_ids) and set(volume_ids) == set(
+                    sg_vols):
+                if self._conn.provisioning.get_masking_views_from_storage_group(
+                        storagegroup=sg):
+                    cant_remove = True
+                    cant_remove_msg += "SG {} is used in a MV and TDEVs {} are " \
+                                       "the last ones inside it". \
+                        format(sg, ", ".join(volume_ids))
+        if cant_remove:
+            self._module.fail_json(msg=cant_remove_msg)
 
-    def modify_volume(self):
-        changed = False
-        message = ""
-        # Get a list of all volumes in SG
-        sg_vols = self.conn.provisioning.get_volume_list(filters={
-            'storageGroupId': self.module.params['sgname']})
-        for volume in self.module.params['volumes']:
-            current_volume = self.conn.provisioning.get_volume(device_id=volume[
-                    'device_id'])
-            if current_volume['cap_gb'] < volume['cap_gb']:
-                self.conn.provisioning.extend_volume(new_size=volume[
-                    'cap_gb'],device_id=volume[
-                    'device_id'])
-                message = "Volume resized"
-                changed = True
-            # TODO add logic to add specific volumes.
-            else:
-                message = "Unable to resize all volumes specified, check input"
-            # Checks to verify identifier matches the label
-            if volume['vol_name'] == current_volume['volume_identifier']:
-                message = message + " .No changes made to Volume names"
-            else:
-                self.conn.provisioning.rename_volume(device_id=volume[
-                    'device_id'], new_name=volume[
-                    'vol_name'])
-                message = message + " labels have changed"
-                changed = True
+        # Let's launch the main function and remove TDEVs from SGs
+        for sg in self._module.params['sgname']:
+            sg_vols = self._conn.provisioning. \
+                get_volume_list(filters={'storageGroupId': sg})
 
-        lunsummary = []
-        for lun in sg_vols:
-            lundetails = self.conn.provisioning.get_volume(lun)
-            # sg_lun_detail_list.append(lundetails)
-            sglun = {}
-            sglun['volumeId'] = lundetails['volumeId']
-            sglun['vol_name'] = lundetails['volume_identifier']
-            sglun['cap_gb'] = lundetails['cap_gb']
-            sglun['wwn'] = lundetails['effective_wwn']
-            lunsummary.append(sglun)
+            for volume in volume_ids:
+                if volume in sg_vols:
+                    try:
+                        self._conn.provisioning.remove_vol_from_storagegroup(
+                            sg_id=sg,
+                            vol_id=volume)
+                    except Exception as error:
+                        self._module.fail_json(
+                            msg="Unable to remove {} from {} ({})".
+                            format(volume, sg, error))
+                    self._message.append(
+                        "{} successfully removed from {}".format(volume, sg))
+                    self._changed = True
+                else:
+                    self._message.append("{} not in {}".format(volume, sg))
 
-        facts = ({'storagegroup_name': self.module.params['sgname'],
-                  'storagegroup_detail': self.conn.provisioning.get_storage_group(
-                      storage_group_name=self.module.params['sgname']),
-                  'sg_volumes': lunsummary,
-                  'message': message})
-        result = {'state': 'info', 'changed': changed}
+        self._facts = ({'message': self._message})
 
-        self.module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
+    def _resizing_volumes(self):
+        """
+        Resizing volumes (only for non-RDF volumes)
+        :return: (None)
+        """
+        for volume in self._module.params['volumes']:
+            # We launch actions only of 'cap_gb' option is set in parameters
+            if 'cap_gb' in volume:
+                a_volume = self._conn.provisioning. \
+                    get_volume(device_id=volume['device_id'])
+
+                if a_volume['cap_gb'] < volume['cap_gb']:
+                    try:
+                        self._conn.provisioning.extend_volume(
+                            new_size=volume['cap_gb'],
+                            device_id=volume['device_id'])
+                    except Exception as error:
+                        self._module.fail_json(msg="Unable to extend {} ({})".
+                                               format(volume['device_id'],
+                                                      error))
+                    self._message.append("Volume {} re-sized to {} GB".format(
+                        volume['device_id'],
+                        volume['cap_gb']))
+                    self._changed = True
+                else:
+                    self._message.append(
+                        "{} size unchanged".format(volume['device_id']))
+        self._facts = ({'message': self._message})
 
     def apply_module(self):
-        if self.module.params['in_sg'] == 'absent':
-            self.remove_volumes()
+        """
+        Main action of this module
+        :return: (None)
+        """
+        # First detect if changes needs to be applied to volumes
+        # (ex: size or label)
+        if self._mode_resizing:
+            self._resizing_volumes()
+            self._relabeling_volumes()
 
-        elif self.module.params['in_sg'] == 'present':
-            self.modify_volume()
+        else:
+            # Adding or removing TDEVs to/from SGs
+            if bool(self._module.params['in_sg']):
+                # Parameter check before go ahead
+                if not self._module.params['sgname']:
+                    self._module.fail_json(msg="sgname parameter must present "
+                                               "while using with in_sg "
+                                               "parameter.")
+
+                if self._module.params['in_sg'] == 'absent':
+                    self._remove_volumes()
+
+                elif self._module.params['in_sg'] == 'present':
+                    self._add_volumes()
+
+            # Freeing a list of TDEVs
+            elif self._module.params['freeing']:
+                self._freeing_volumes()
+
+            # Deleting a list of TDEVs
+            elif self._module.params['delete']:
+                self._delete_volumes()
+
+        result = {'state': 'info', 'changed': self._changed}
+        self._module.exit_json(ansible_facts={'volume_detail': self._facts},
+                               **result)
 
 
 def main():
-    d = DellEmcVolume()
-    d.apply_module()
+    DellEmcVolume().apply_module()
 
 
 if __name__ == '__main__':
