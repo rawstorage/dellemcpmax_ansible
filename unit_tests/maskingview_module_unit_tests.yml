@@ -1,0 +1,119 @@
+#!/usr/bin/env ansible-playbook
+---
+- name: Create a New Masking View from scratch
+  connection: local
+  hosts: localhost
+  vars_files:
+    - vars.yml
+
+  vars:
+    input: &uni_connection_vars
+      array_id : "{{ array_id }}"
+      password : "{{ password }}"
+      unispherehost : "{{ unispherehost }}"
+      universion : "{{ universion }}"
+      user : "{{ user }}"
+      verifycert : "{{ verifycert }}"
+
+  tasks:
+  - name: Create Host
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+          - 1000000fc98ffea2
+          - 1000000fc98ffeb3
+        host_id: "AnsibleHost1"
+        host_type: default
+        consistent_lun: false
+        state: present
+        wwn_state: present
+
+  - name: Create Port Group
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "AnsiblePG1"
+      array_ports:
+        - "FA-1D:4"
+        - "FA-2D:4"
+      state: present
+      port_state: in_pg
+
+  - name: Create New Storage Group with one volume
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "AnsibleSG1"
+      slo: "Diamond"
+      luns:
+        - num_vols: 1
+          cap_gb: 2
+          vol_name: "UnittestPlaybookMV"
+      state: present
+      no_compression: true
+
+  - name: Create Masking View
+    dellemc_pmax_maskingview:
+      <<: *uni_connection_vars
+      sgname: "AnsibleSG1"
+      portgroup_id: "AnsiblePG1"
+      host_or_cluster : "AnsibleHost1"
+      maskingview_name: "Ansible_MV"
+      state: present
+  - debug: var=maskingview_detail
+
+  - name: (Idempotent testing) Try to create again this Masking View
+    dellemc_pmax_maskingview:
+      <<: *uni_connection_vars
+      sgname: "AnsibleSG1"
+      portgroup_id: "AnsiblePG1"
+      host_or_cluster : "AnsibleHost1"
+      maskingview_name: "Ansible_MV"
+      state: present
+  - debug: var=maskingview_detail
+
+
+  ################
+  # Cleanup steps
+  ################
+  - name: Deleting Masking View
+    dellemc_pmax_maskingview:
+      <<: *uni_connection_vars
+      sgname: "AnsibleSG1"
+      portgroup_id: "AnsiblePG1"
+      host_or_cluster : "AnsibleHost1"
+      maskingview_name: "Ansible_MV"
+      state: absent
+  - debug: var=maskingview_detail
+
+  - name: Deleting host
+    dellemc_pmax_host:
+        <<: *uni_connection_vars
+        initiator_list:
+        - 10000000c98ffea2
+        - 10000000c98ffeb3
+        host_id: "AnsibleHost1"
+        host_type: default
+        consistent_lun: false
+        state: absent
+        wwn_state: present
+
+  - name: Deleting Port Group
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "AnsiblePG1"
+      array_ports:
+      - "FA-1D:4"
+      - "FA-2D:4"
+      state: absent
+      port_state: in_pg
+
+  - name: Deleting New Storage Group
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "AnsibleSG1"
+      slo: "Diamond"
+      luns:
+      - num_vols: 1
+        cap_gb: 2
+        vol_name: "Unittest Playbook MV"
+      state: absent
+      no_compression: true
