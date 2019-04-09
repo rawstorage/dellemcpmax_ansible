@@ -7,7 +7,8 @@
 
 from __future__ import absolute_import, division, print_function
 import time
-
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 __metaclass__ = type
 
@@ -95,7 +96,7 @@ EXAMPLES = '''
   connection: local
   vars_files:
     - vars.yml
-
+    
   tasks:
   - name: Adding TDEVs into SG
     dellemc_pmax_volume:
@@ -112,6 +113,7 @@ EXAMPLES = '''
         - device_id: "000BB"
         - device_id: "000BA"
   - debug: var=storagegroup_detail
+
   - name: Removing TDEVs from SG
     dellemc_pmax_volume:
       unispherehost: "{{unispherehost}}"
@@ -127,6 +129,7 @@ EXAMPLES = '''
         - device_id: "000BB"
         - device_id: "000BA"
   - debug: var=storagegroup_detail
+
   - name: Resize volume
     dellemc_pmax_volume:
       unispherehost: "{{unispherehost}}"
@@ -139,6 +142,7 @@ EXAMPLES = '''
         - device_id: "000BB"
           cap_gb: 6
   - debug: var=volume_detail
+
   - name: Relabeling volumes 
     dellemc_pmax_volume:
       unispherehost: "{{unispherehost}}"
@@ -153,6 +157,7 @@ EXAMPLES = '''
         - device_id: "000BA"
           vol_name: "MYLABEL"
   - debug: var=volume_detail
+
   - name: Relabeling AND resizing volumes at the same time 
     dellemc_pmax_volume:
       unispherehost: "{{unispherehost}}"
@@ -169,6 +174,7 @@ EXAMPLES = '''
           vol_name: "MYLABEL"
           cap_gb: 6
   - debug: var=volume_detail
+
   - name: Erasing/Freeing volumes
     dellemc_pmax_volume:
       unispherehost: "{{unispherehost}}"
@@ -182,6 +188,7 @@ EXAMPLES = '''
         - device_id: "000BB"
         - device_id: "000BA"
   - debug: var=volume_detail
+
   - name: Deleting volumes
     dellemc_pmax_volume:
       unispherehost: "{{unispherehost}}"
@@ -207,8 +214,7 @@ ok: [localhost] => {
     }
 }
 '''
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
+
 
 class DellEmcVolume(object):
     """
@@ -218,16 +224,31 @@ class DellEmcVolume(object):
 
     def __init__(self):
         self._argument_spec = dellemc_pmax_argument_spec()
+
         self._argument_spec.update(dict(
-            volumes=dict(type='list', required=True),
+            volumes=dict(type='list',
+                         options=dict(
+                             device_id=dict(default=True, type="str", required=True),
+                             vol_name=dict(default=False, type="str", required=False),
+                             cap_gb=dict(default=True, type="float", required=False)
+                         ), required=True),
             sgname=dict(type='list', required=False, default=[]),
-            in_sg=dict(type='str', choices=['present', 'absent'],
-                       required=False, ),
+            in_sg=dict(type='str', choices=['present', 'absent'], required=False, ),
             freeing=dict(type='bool', required=False, default=False),
             delete=dict(type='bool', required=False, default=False),
         ))
 
         self._module = AnsibleModule(argument_spec=self._argument_spec)
+
+        # Convert cap_gb to float ( in case cap_gb is filled using var_prompts).
+        # sub-level options are always converted to str. Type doesn't matter
+        try:
+            for v in self._module.params['volumes']:
+                if 'cap_gb' in v.keys():
+                    v['cap_gb'] = float(v['cap_gb'])
+        except ValueError:
+            self._module.fail_json(msg="Cannot convert cap_gb to float (field volumes).")
+
         self._conn = pmaxapi(self._module)
         self._changed = False
         self._facts = None
@@ -281,19 +302,16 @@ class DellEmcVolume(object):
             try:
                 for volume in volume_ids:
                     if volume not in sg_vols:
-                        self._conn.provisioning.add_existing_vol_to_sg(
-                            sg_id=sg,
-                            vol_ids=volume)
-                        self._message.append(
-                            "{} successfully added to {}".format(volume, sg))
+                        self._conn.provisioning.add_existing_vol_to_sg(sg_id=sg,
+                                                                       vol_ids=volume)
+                        self._message.append("{} successfully added to {}"
+                                             .format(volume, sg))
                         self._changed = True
                     else:
-                        self._message.append(
-                            "{} already in {}".format(volume, sg))
+                        self._message.append("{} already in {}".format(volume, sg))
             except Exception as error:
-                self._module.fail_json(
-                    msg="Unable to add {} to {} ({})".format(volume_ids, sg,
-                                                             error))
+                self._module.fail_json(msg="Unable to add {} to {} ({})"
+                                       .format(volume_ids, sg, error))
 
         self._facts = ({'message': self._message})
 
@@ -304,17 +322,13 @@ class DellEmcVolume(object):
         """
         for volume in self._module.params["volumes"]:
             try:
-                self._conn.provisioning.delete_volume(
-                    device_id=volume["device_id"])
+                self._conn.provisioning.delete_volume(device_id=volume["device_id"])
                 self._changed = True
-                self._message.append(
-                    "{} has been deleted".format(volume["device_id"]))
+                self._message.append("{} has been deleted"
+                                     .format(volume["device_id"]))
             except Exception as error:
-                self._module.fail_json(
-                    msg="Unable to delete volume {} ({})".format(
-                        volume["device_id"],
-                        error))
-
+                self._module.fail_json(msg="Unable to delete volume {} ({})"
+                                       .format(volume["device_id"], error))
         self._facts = ({'message': self._message})
 
     def _freeing_volumes(self):
@@ -326,13 +340,11 @@ class DellEmcVolume(object):
         # (CAREFUL: deallocate by API works EVEN IF A VOLUME IS STILL IN A SG)
         still_in_sg = False
         for volume in self._module.params["volumes"]:
-            v_details = self._conn.provisioning.get_volume(
-                device_id=volume['device_id'])
+            v_details = self._conn.provisioning.get_volume(device_id=volume['device_id'])
             if 'storageGroupId' in v_details:
                 still_in_sg = True
-                self._message.append(
-                    "{} is still in SG {} (remove it before freeing)".
-                    format(volume['device_id'], v_details['storageGroupId']))
+                self._message.append("{} is still in SG {} (remove it before freeing)".
+                                     format(volume['device_id'], v_details['storageGroupId']))
         if still_in_sg:
             self._module.fail_json(msg=self._message)
 
@@ -343,23 +355,20 @@ class DellEmcVolume(object):
         sg_prefix = "SG_DeletePair_{}".format(round(time.time()))
 
         for volume in self._module.params["volumes"]:
-            v_details = self._conn.provisioning.get_volume(
-                device_id=volume['device_id'])
+            v_details = self._conn.provisioning.get_volume(device_id=volume['device_id'])
             if 'rdfGroupId' in v_details:
                 for group in v_details['rdfGroupId']:
                     if group['rdf_group_number'] not in rdf_mapping:
                         rdf_mapping[group['rdf_group_number']] = []
-                    rdf_mapping[group['rdf_group_number']].append(
-                        volume['device_id'])
+                    rdf_mapping[group['rdf_group_number']].append(volume['device_id'])
 
         # If RDF pairs exists, delete them
         if rdf_mapping:
             _message = []
             for rdf_id in rdf_mapping:
                 for volume in rdf_mapping[rdf_id]:
-                    v_details = self._conn.replication.get_rdf_group_volume(
-                        rdf_number=rdf_id,
-                        device_id=volume)
+                    v_details = self._conn.replication.get_rdf_group_volume(rdf_number=rdf_id,
+                                                                            device_id=volume)
                     _message.append("{} was paired with {}({})".
                                     format(volume,
                                            v_details['remoteVolumeName'],
@@ -379,14 +388,11 @@ class DellEmcVolume(object):
                         delete_storagegroup_srdf(storagegroup_id=sg_name,
                                                  rdfg_num=rdf_id)
                 except Exception as error:
-                    self._module.fail_json(
-                        msg="Unable to destroy RDF pairs for "
-                            "devices {} ({})".format(
-                            ", ".join(rdf_mapping[rdf_id]),
-                            error))
+                    self._module.fail_json(msg="Unable to destroy RDF pairs for "
+                                               "devices {} ({})"
+                                           .format(", ".join(rdf_mapping[rdf_id]), error))
                 finally:
-                    self._conn.provisioning.delete_storagegroup(
-                        storagegroup_id=sg_name)
+                    self._conn.provisioning.delete_storagegroup(storagegroup_id=sg_name)
 
                 self._changed = True
                 self._message += _message
@@ -394,20 +400,16 @@ class DellEmcVolume(object):
         # Finally, let's freeing the list of volumes
         for volume in self._module.params["volumes"]:
             try:
-                self._conn.provisioning.deallocate_volume(
-                    device_id=volume['device_id'])
+                self._conn.provisioning.deallocate_volume(device_id=volume['device_id'])
 
             except Exception as error:
-                if 'device is already in the requested state' not in str(
-                        error):
+                if 'device is already in the requested state' not in str(error):
                     _msg = "Unable to deallocate volume {}. Deleted pairs: {} ({})". \
-                        format(volume['device_id'], ", ".join(self._message),
-                               error)
+                        format(volume['device_id'], ", ".join(self._message), error)
                     self._module.fail_json(msg=_msg)
 
             self._changed = True
-            self._message.append(
-                "{} freeing launched".format(volume['device_id']))
+            self._message.append("{} freeing launched".format(volume['device_id']))
 
         self._facts = ({'message': self._message})
 
@@ -423,23 +425,21 @@ class DellEmcVolume(object):
                 a_volume = self._conn.provisioning. \
                     get_volume(device_id=volume['device_id'])
                 # Checks to verify identifier matches the label
-                if 'volume_identifier' in a_volume and volume['vol_name'] == \
-                        a_volume['volume_identifier']:
+                if 'volume_identifier' in a_volume and \
+                        volume['vol_name'] == a_volume['volume_identifier']:
                     self._message.append("{} No changes made to label".
                                          format(volume['device_id']))
 
                 else:
                     try:
-                        self._conn.provisioning.rename_volume(
-                            device_id=volume['device_id'],
-                            new_name=volume['vol_name'])
+                        self._conn.provisioning. \
+                            rename_volume(device_id=volume['device_id'],
+                                          new_name=volume['vol_name'])
                     except Exception as error:
                         self._module.fail_json(msg="Unable to rename {} ({})".
-                                               format(volume['device_id'],
-                                                      error))
-                    self._message.append(
-                        "{} label changed for {}".format(volume['device_id'],
-                                                         volume['vol_name']))
+                                               format(volume['device_id'], error))
+                    self._message.append("{} label changed for {}"
+                                         .format(volume['device_id'], volume['vol_name']))
                     self._changed = True
         self._facts = ({'message': self._message})
 
@@ -469,10 +469,9 @@ class DellEmcVolume(object):
             sg_vols = self._conn.provisioning. \
                 get_volume_list(filters={'storageGroupId': sg})
 
-            if len(sg_vols) == len(volume_ids) and set(volume_ids) == set(
-                    sg_vols):
-                if self._conn.provisioning.get_masking_views_from_storage_group(
-                        storagegroup=sg):
+            if len(sg_vols) == len(volume_ids) and set(volume_ids) == set(sg_vols):
+                if self._conn.provisioning.\
+                        get_masking_views_from_storage_group(storagegroup=sg):
                     cant_remove = True
                     cant_remove_msg += "SG {} is used in a MV and TDEVs {} are " \
                                        "the last ones inside it". \
@@ -488,15 +487,14 @@ class DellEmcVolume(object):
             for volume in volume_ids:
                 if volume in sg_vols:
                     try:
-                        self._conn.provisioning.remove_vol_from_storagegroup(
-                            sg_id=sg,
-                            vol_id=volume)
+                        self._conn.provisioning. \
+                            remove_vol_from_storagegroup(sg_id=sg,
+                                                         vol_id=volume)
                     except Exception as error:
-                        self._module.fail_json(
-                            msg="Unable to remove {} from {} ({})".
-                            format(volume, sg, error))
-                    self._message.append(
-                        "{} successfully removed from {}".format(volume, sg))
+                        self._module.fail_json(msg="Unable to remove {} from {} ({})".
+                                               format(volume, sg, error))
+                    self._message.append("{} successfully removed from {}"
+                                         .format(volume, sg))
                     self._changed = True
                 else:
                     self._message.append("{} not in {}".format(volume, sg))
@@ -516,20 +514,16 @@ class DellEmcVolume(object):
 
                 if a_volume['cap_gb'] < volume['cap_gb']:
                     try:
-                        self._conn.provisioning.extend_volume(
-                            new_size=volume['cap_gb'],
-                            device_id=volume['device_id'])
+                        self._conn.provisioning.extend_volume(new_size=volume['cap_gb'],
+                                                              device_id=volume['device_id'])
                     except Exception as error:
                         self._module.fail_json(msg="Unable to extend {} ({})".
-                                               format(volume['device_id'],
-                                                      error))
-                    self._message.append("Volume {} re-sized to {} GB".format(
-                        volume['device_id'],
-                        volume['cap_gb']))
+                                               format(volume['device_id'], error))
+                    self._message.append("Volume {} re-sized to {} GB".
+                                         format(volume['device_id'], volume['cap_gb']))
                     self._changed = True
                 else:
-                    self._message.append(
-                        "{} size unchanged".format(volume['device_id']))
+                    self._message.append("{} size unchanged".format(volume['device_id']))
         self._facts = ({'message': self._message})
 
     def apply_module(self):
@@ -567,8 +561,7 @@ class DellEmcVolume(object):
                 self._delete_volumes()
 
         result = {'state': 'info', 'changed': self._changed}
-        self._module.exit_json(ansible_facts={'volume_detail': self._facts},
-                               **result)
+        self._module.exit_json(ansible_facts={'volume_detail': self._facts}, **result)
 
 
 def main():
