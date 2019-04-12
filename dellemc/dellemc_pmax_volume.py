@@ -7,8 +7,6 @@
 
 from __future__ import absolute_import, division, print_function
 import time
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 __metaclass__ = type
 
@@ -214,6 +212,9 @@ ok: [localhost] => {
     }
 }
 '''
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
 class DellEmcVolume(object):
@@ -470,7 +471,7 @@ class DellEmcVolume(object):
                 get_volume_list(filters={'storageGroupId': sg})
 
             if len(sg_vols) == len(volume_ids) and set(volume_ids) == set(sg_vols):
-                if self._conn.provisioning.\
+                if self._conn.provisioning. \
                         get_masking_views_from_storage_group(storagegroup=sg):
                     cant_remove = True
                     cant_remove_msg += "SG {} is used in a MV and TDEVs {} are " \
