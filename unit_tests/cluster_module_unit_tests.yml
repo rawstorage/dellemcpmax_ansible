@@ -1,6 +1,6 @@
 #!/usr/bin/env ansible-playbook
 ---
-- name: "Unittest - Create a New HostGroup"
+- name: "Unittest - Create new HostGroup"
   connection: local
   hosts: localhost
 
@@ -57,7 +57,7 @@
         state: present
         wwn_state: present
 
-  - name: Creating a host Group with host 1 and 2
+  - name: Creation an Host Group with host 1 and 2
     dellemc_pmax_cluster:
         <<: *uni_connection_vars
         cluster_name: "AnsibleCluster"
@@ -66,9 +66,18 @@
         - AnsibleChild2
         state: present
         host_state: in_cluster
-    register: output
+  - debug: var=host_detail
 
-  - debug: var=output
+  - name: (Idempotency check) Creation an Host Group with host 1 and 2
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild1
+        - AnsibleChild2
+        state: present
+        host_state: in_cluster
+  - debug: var=host_detail
 
   - name: Adding to Host Group host number 3
     dellemc_pmax_cluster:
@@ -78,9 +87,7 @@
         - AnsibleChild3
         state: present
         host_state: in_cluster
-    register: output
-
-  - debug: var=output
+  - debug: var=host_detail
 
   - name: Removing from Host Group host number 3
     dellemc_pmax_cluster:
@@ -90,9 +97,17 @@
         - AnsibleChild3
         state: present
         host_state: not_in_cluster
-    register: output
+  - debug: var=host_detail
 
-  - debug: var=output
+  - name: (Idempotency check) Removing from Host Group host number 3
+    dellemc_pmax_cluster:
+        <<: *uni_connection_vars
+        cluster_name: "AnsibleCluster"
+        host_list:
+        - AnsibleChild3
+        state: present
+        host_state: not_in_cluster
+  - debug: var=host_detail
 
   - name: Deleting an Host Group
     dellemc_pmax_cluster:
@@ -103,9 +118,7 @@
         - AnsibleChild2
         state: absent
         host_state: in_cluster
-    register: output
-
-  - debug: var=output
+  - debug: var=host_detail
 
 
 
@@ -113,7 +126,7 @@
   # TEST WITH CONSISTENT_LUN
   #############################
 
-  - name: Creating a new child host number 4 with consitent_lun
+  - name: Creating a new child host number 4 with consistent_lun
     dellemc_pmax_host:
         <<: *uni_connection_vars
         initiator_list:
@@ -125,7 +138,7 @@
         state: present
         wwn_state: present
 
-  - name: Creating a new child host number 5 with consitent_lun
+  - name: Creating a new child host number 5 with consistent_lun
     dellemc_pmax_host:
         <<: *uni_connection_vars
         initiator_list:
@@ -137,7 +150,7 @@
         state: present
         wwn_state: present
 
-  - name: Creating a host Group with host 4 and 5
+  - name: Creation an Host Group with host 4 and 5
     dellemc_pmax_cluster:
         <<: *uni_connection_vars
         cluster_name: "AnsibleCluster"
@@ -146,9 +159,7 @@
         - AnsibleChild5
         state: present
         host_state: in_cluster
-    register: output
-
-  - debug: var=output
+  - debug: var=host_detail
 
   - name: Deleting an Host Group
     dellemc_pmax_cluster:
@@ -159,9 +170,7 @@
         - AnsibleChild2
         state: absent
         host_state: in_cluster
-    register: output
-
-  - debug: var=output
+  - debug: var=host_detail
 
 
   #############################
