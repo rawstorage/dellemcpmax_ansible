@@ -126,6 +126,17 @@ EXAMPLES = '''
         - AnsibleHost2
         state: present
         host_state: in_cluster
+  - name: Renaming a cluster
+    dellemc_pmax_cluster:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        cluster_name: "Cluster"
+        new_cluster_name: "NewCluster"
+        state: present
   - name: Delete Cluster
     dellemc_pmax_cluster:
         unispherehost: "{{unispherehost}}"
@@ -170,11 +181,12 @@ class DellEmcPmaxCluster(object):
         self._argument_spec = dellemc_pmax_argument_spec()
         self._argument_spec.update(dict(
             cluster_name=dict(type='str', required=True),
-            host_list=dict(type='list', required=True),
+            new_cluster_name=dict(type='str', required=False),
+            host_list=dict(type='list', required=False),
             state=dict(type='str', required=True,
                        choices=['present', 'absent']),
             host_state=dict(type='str',
-                            required=True,
+                            required=False,
                             choices=['in_cluster', 'not_in_cluster'])
         ))
 
@@ -318,6 +330,25 @@ class DellEmcPmaxCluster(object):
                                           self._cluster_name,
                                           error))
 
+    def _rename_hostgroup(self):
+        """
+        Renaming an existing host-group
+        :return: None
+        """
+        try:
+            if self._cluster_name not in self._conn.provisioning.get_hostgroup_list():
+                self._module.fail_json(msg="Cluster {} doesn't exists".format(self._cluster_name))
+
+            self._conn.provisioning.modify_hostgroup(hostgroup_id=self._cluster_name,
+                                                     new_name=self._module.params['new_cluster_name'])
+            self._changed = True
+            # Updating cluster_name to be consistent with the next facts gathering
+            self._cluster_name = self._module.params['new_cluster_name']
+            self._message.append("Host renamed to {}".format(self._cluster_name))
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to rename cluster ({})".format(error))
+
     def _delete_hostgroup(self):
         """
         Deleting an host-group
@@ -358,12 +389,18 @@ class DellEmcPmaxCluster(object):
         :return: None
         """
         if self._module.params['state'] == 'present':
-            self._create_hostgroup()
-            if self._host_state == 'in_cluster':
-                self._add_host_into_hostgroup()
+            # If we want to rename cluster, this operation will done in first
+            # place and will be exclusive
+            if self._module.params['new_cluster_name']:
+                self._rename_hostgroup()
 
-            elif self._host_state == 'not_in_cluster':
-                self._remove_host_from_hostgroup()
+            else:
+                self._create_hostgroup()
+                if self._host_state == 'in_cluster':
+                    self._add_host_into_hostgroup()
+
+                elif self._host_state == 'not_in_cluster':
+                    self._remove_host_from_hostgroup()
 
         elif self._module.params['state'] == 'absent':
             self._delete_hostgroup()
