@@ -1,10 +1,12 @@
 #!/usr/bin/env ansible-playbook
 ---
-- name: "Create a New Host"
+- name: "Unittest - Create a New Host"
   connection: local
   hosts: localhost
+
   vars_files:
     - vars.yml
+
   vars:
     input: &uni_connection_vars
       array_id : "{{ array_id }}"
@@ -13,163 +15,130 @@
       universion : "{{ universion }}"
       user : "{{   user  }}"
       verifycert : "{{ verifycert }}"
+
   tasks:
-  - name: Create Host
-    dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 10000000c98ffea2
-        - 10000000c98ffeb3
-        host_id: "AnsibleHost1"
-        state: present
-        wwn_state: present
-    register: output
-  - name: Add initiator Host
-    dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 10000000c98ffec3
-        - 10000000c98ffec4
-        host_id: "AnsibleHost1"
-        state: present
-        wwn_state: present
-    register: output
-  - name: remove initiators from host
-    dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 10000000c98ffea2
-        - 10000000c98ffeb3
-        host_id: "AnsibleHost1"
-        state: present
-        wwn_state: absent
-    register: output
-  - name: Delete Host
-    dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 10000000c98ffea2
-        - 10000000c98ffeb3
-        host_id: "AnsibleHost1"
-        state: absent
-        wwn_state: absent
-    register: output
   - name: Creating a new Host with host_type to default
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: present
-        wwn_state: present
-    register: output
-
-  - debug: var=output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: present
+  - debug: var=host_detail
 
   - name: Checking idempotent try to create the same Host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: present
-        wwn_state: present
-    register: output
-
-  - debug: var=output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: present
+  - debug: var=host_detail
 
   - name: Adding initiators to this Host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffec3
-        - 1000000cc98ffec4
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: present
-        wwn_state: present
-    register: output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffec3
+      - 1000000cc98ffec4
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: present
+  - debug: var=host_detail
 
-  - debug: var=output
+  - name: Trying idempotency Adding initiators to this Host
+    dellemc_pmax_host:
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffec3
+      - 1000000cc98ffec4
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: present
+  - debug: var=host_detail
 
   - name: Removing initiators from that host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: present
-        wwn_state: absent
-    register: output
-
-  - debug: var=output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: absent
+  - debug: var=host_detail
 
   - name: Checking idempotent try to removing again the same initiators
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: present
-        wwn_state: absent
-    register: output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: absent
+  - debug: var=host_detail
 
-  - debug: var=output
+  - name: Renaming that host
+    dellemc_pmax_host:
+      <<: *uni_connection_vars
+      host_id: "AnsibleHost1"
+      new_host_id: "NewAnsibleHost1"
+      host_type: default
+      state: present
+  - debug: var=host_detail
 
   - name: Deleting this Host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: absent
-        wwn_state: absent
-    register: output
-
-  - debug: var=output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "NewAnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: absent
+      wwn_state: absent
+  - debug: var=host_detail
 
   - name: Creating a new HPUX Host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: hpux
-        consistent_lun: true
-        state: present
-        wwn_state: present
-    register: output
-
-  - debug: var=output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "AnsibleHost2"
+      host_type: hpux
+      consistent_lun: true
+      state: present
+      wwn_state: present
+  - debug: var=host_detail
 
   - name: Deleting this Host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-        - 1000000cc98ffea2
-        - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: hpux
-        consistent_lun: true
-        state: absent
-        wwn_state: absent
-    register: output
-
-  - debug: var=output
+      <<: *uni_connection_vars
+      initiator_list:
+      - 1000000cc98ffea2
+      - 1000000cc98ffeb3
+      host_id: "AnsibleHost2"
+      host_type: hpux
+      consistent_lun: true
+      state: absent
+      wwn_state: absent
+  - debug: var=host_detail
