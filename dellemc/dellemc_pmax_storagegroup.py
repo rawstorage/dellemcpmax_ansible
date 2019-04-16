@@ -47,6 +47,11 @@ options:
       - "Storage Group name 32 Characters no special characters other than
       underscore."
     required: true
+  new_sgname:
+    description:
+      - "New Storage Group name 32 Characters no special characters other than
+      underscore."
+    required: false
   slo:
     description:
       - "Service Level for the storage group, Supported on VMAX3 and All Flash
@@ -98,7 +103,7 @@ requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
   - "VMAX All Flash, VMAX3, or PowerMax storage Array."
-  - "PyU4V version 3.0.0.9 or higher using PIP python -m pip install PyU4V"
+  - "PyU4V version 3.0.0.10 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
 #!/usr/bin/env ansible-playbook
@@ -182,7 +187,13 @@ EXAMPLES = '''
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: present
-    tasks:
+  - name: "Renaming SG"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      new_sgname: "NewAnsible_SG"
+      slo: "Diamond"
+      state: present
   - name: "Delete Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
@@ -275,6 +286,7 @@ class DellEmcStorageGroup(object):
         self._argument_spec = dellemc_pmax_argument_spec()
         self._argument_spec.update(dict(
             sgname=dict(type='str', required=True),
+            new_sgname=dict(type='str', required=False),
             slo=dict(type='str',
                      choices=['Diamond', 'Platinum', 'Gold',
                               'Silver', 'Bronze'],
@@ -525,12 +537,43 @@ class DellEmcStorageGroup(object):
                     self._message.append("No new volume of {} GB to add in {}".
                                          format(group['cap_gb'], self._sg_name))
 
+    def _rename_sg(self):
+        """
+        Renaming an existing StorageGroup
+        :return: None
+        """
+        try:
+            sg_list = self._conn.provisioning.get_storage_group_list()
+            if self._sg_name not in sg_list:
+                self._module.fail_json(msg="SG {} doesn't exists".format(self._sg_name))
+
+            if self._module.params['new_sgname'] in sg_list:
+                self._module.fail_json(msg="Target SG name {} already exists".
+                                       format(self._module.params['new_sgname']))
+
+            rename = {
+                "editStorageGroupActionParam": {
+                    "renameStorageGroupParam": {
+                        "new_storage_Group_name": self._module.params['new_sgname']
+                    }
+                }
+            }
+            self._conn.provisioning.modify_storage_group(storagegroup=self._sg_name,
+                                                         payload=rename)
+            self._changed = True
+            # Updating sg_name to be consistent with the next facts gathering
+            self._sg_name = self._module.params['new_sgname']
+            self._message.append("SG renamed to {}".format(self._sg_name))
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to rename SG({})".format(error))
+
     def apply_module(self):
         """
         Main function for that object
         :return: None
         """
-        facts = {'storagegroup_name': self._sg_name}
+        facts = {}
 
         # Storage Group deletion
         if self._module.params['state'] == 'absent':
@@ -538,17 +581,23 @@ class DellEmcStorageGroup(object):
 
         # Storage Group creation and/or alteration
         elif self._module.params['state'] == 'present':
-            self._create_sg()
-            self._change_service_level()
-            if self._lun_request:
-                self._modify_sg()
+            # If we want to rename SG, this operation will done in first
+            # place and will be exclusive
+            if self._module.params['new_sgname']:
+                self._rename_sg()
+
+            else:
+                self._create_sg()
+                self._change_service_level()
+                if self._lun_request:
+                    self._modify_sg()
             facts['sg_volumes'] = self._get_sg_lun_list()
             facts['lun_request'] = self._current_sg_config()
 
         facts['message'] = self._message
+        facts['storagegroup_name'] = self._sg_name
         result = {'state': 'info', 'changed': self._changed}
-        self._module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                               **result)
+        self._module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
 
 
 def main():

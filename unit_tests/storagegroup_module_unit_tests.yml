@@ -17,6 +17,7 @@
       verifycert: "{{ verifycert }}"
 
     sg_name: "Ansible_SG_testing"
+    new_sg_name: "New_Ansible_SG_testing"
 
     lun_request:
       # Each item will be treated as a request for volumes, all sizes are GB
@@ -87,10 +88,19 @@
         state: "present"
     - debug: var=storagegroup_detail
 
-    - name: Deleting Storage Group only volumes will be not deleted
+    - name: "Renaming Storage Group from {{ sg_name }} to {{ new_sg_name }}"
       dellemc_pmax_storagegroup:
         <<: *uni_connection_vars
         sgname: "{{ sg_name }}"
+        new_sgname: "{{ new_sg_name }}"
+        slo: "Diamond"
+        state: "present"
+    - debug: var=storagegroup_detail
+
+    - name: Deleting Storage Group only volumes will be not deleted
+      dellemc_pmax_storagegroup:
+        <<: *uni_connection_vars
+        sgname: "{{ new_sg_name }}"
         slo: "Diamond"
         state: "absent"
     - debug: var=storagegroup_detail
