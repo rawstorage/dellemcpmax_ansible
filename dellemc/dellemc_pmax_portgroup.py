@@ -6,7 +6,8 @@
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
-
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 __metaclass__ = type
 
@@ -20,6 +21,7 @@ DOCUMENTATION = '''
 ---
 author:
   - "Paul Martin (@rawstorage)"
+  - "Julien Brusset (@jbrt)"
 short_description: "Create or modify port group on Dell EMC PowerMax or VMAX All
 Flash"
 version_added: "2.8"
@@ -32,7 +34,7 @@ description:
   tested with Unisphere 9.0. 
   Every effort has been made to verify the scripts run with valid input. 
   These modules are a tech preview"
-
+  
 module: dellemc_pmax_createportgroup
 options:
   array_id:
@@ -66,6 +68,11 @@ options:
       - "32 Character string no special character permitted except for
       underscore"
     required: true
+  new_portgroup_id:
+    description:
+      - "32 Character string no special character permitted except for
+      underscore"
+    required: false
   array_ports:
     description:
       - "List of Ports to be part of Port Group either FA or SE"
@@ -78,12 +85,12 @@ options:
     description:
       - "Whether Array Ports in list should be part of the port group or not"
     required: true
-
+    
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
   - "VMAX All Flash, VMAX3, or PowerMax storage Array."
-  - "PyU4V version 3.0.0.9 or higher using PIP python -m pip install PyU4V"
+  - "PyU4V version 3.0.0.10 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
 ---
@@ -92,6 +99,7 @@ EXAMPLES = '''
   hosts: localhost
   vars_files:
     - vars.yml
+
   tasks:
     - name: "Create New Port Group and add ports"
       dellemc_pmax_portgroup:
@@ -120,6 +128,17 @@ EXAMPLES = '''
                -  FA-2D:8
              state: present
              port_state: out_of_pg
+    - name: "Rename PG"
+      dellemc_pmax_portgroup:
+             unispherehost: "{{unispherehost}}"
+             universion: "{{universion}}"
+             verifycert: "{{verifycert}}"
+             user: "{{user}}"
+             password: "{{password}}"
+             array_id: "{{array_id}}"
+             portgroup_id: "Ansible_PG2"
+             new_portgroup_id: "Ansible_PG2"
+             state: present
     - name "Delete Port Group"
       dellemc_pmax_portgroup:
              unispherehost: "{{unispherehost}}"
@@ -175,6 +194,7 @@ changed: [localhost] => {
     },
     "state": "info"
 }
+
 ok: [localhost] => {
     "ansible_facts": {
         "portgroup_detail": {
@@ -217,19 +237,22 @@ ok: [localhost] => {
     "state": "info"
 }
 '''
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
+
 
 class DellEmcPortGroup(object):
+    """
+    Creating, Updating or Deleting a PortGroup
+    """
     def __init__(self):
         self._argument_spec = dellemc_pmax_argument_spec()
         self._argument_spec.update(dict(
             portgroup_id=dict(type='str', required=True),
+            new_portgroup_id=dict(type='str', required=False),
             state=dict(type='str', required=True, choices=['absent',
                                                            'present']),
-            array_ports=dict(type='list', default=[]),
-            port_state=dict(type='str', required=True, choices=['in_pg',
-                                                                'out_of_pg']),
+            array_ports=dict(type='list', required=False, default=[]),
+            port_state=dict(type='str', required=False, choices=['in_pg',
+                                                                 'out_of_pg']),
         ))
         self._module = AnsibleModule(argument_spec=self._argument_spec)
         self._conn = pmaxapi(self._module)
@@ -239,164 +262,203 @@ class DellEmcPortGroup(object):
         self._message = []
 
     def _create_portgroup(self):
+        """
+        Create a new PortGroup
+        :return: None
+        """
         ports_list = []
+
         # format ports to dict in list, e.g.
         # ["FA-1D:5"] to [{'directorId': 'FA-1D', 'portId': '5'}]
         for item in self._array_ports:
             ports_list.append({"directorId": item.split(":")[0],
                                "portId": item.split(":")[1]})
         try:
-            self._conn.provisioning.create_multiport_portgroup(
-                self._portgroup_id, ports_list)
-            self._message = "Port group {} created".format(self._portgroup_id)
+            self._conn.provisioning.create_multiport_portgroup(self._portgroup_id,
+                                                               ports_list)
+            self._message.append("Port group {} created".format(self._portgroup_id))
             self._changed = True
 
         except Exception as error:
-            self._module.fail_json(msg="problem creating port group. "
-                                       "Error {}".format(error),
+            self._module.fail_json(msg="problem creating port group. Error {}".
+                                   format(error),
                                    changed=self._changed)
 
     def _add_new_ports(self, actual_ports_in_pg):
         """
-        Add port in a portgroup
-        :param actual_ports_in_pg: list of port that are actually in portgroup
-        :return:
+        Add port in a PortGroup
+        :param actual_ports_in_pg: list of port that are actually in PortGroup
+        :return: None
         """
 
-        # make a list with port to add that are not actually in portgroup
+        # Make a list with port to add that are not actually in PortGroup
         ports_not_in_pg = set(self._array_ports) - set(actual_ports_in_pg)
 
         for ansible_port in ports_not_in_pg:
             directorid, portid = ansible_port.split(":")
             ansible_port_tuple = (directorid, portid)
             try:
-                self._conn.provisioning.modify_portgroup(
-                    self._portgroup_id, add_port=ansible_port_tuple)
+                self._conn.provisioning.\
+                    modify_portgroup(portgroup_id=self._portgroup_id,
+                                     add_port=ansible_port_tuple)
 
                 self._changed = True
-                self._message.append("Port {} added."
-                                     .format(
-                    ':'.join(map(str, ansible_port_tuple))))
+                self._message.append("Port {} added".
+                                     format(':'.join(map(str, ansible_port_tuple))))
+
             except Exception:
-                self._message = "Unable to Add Port " \
-                                "Check port {} is valid and of the correct" \
-                                "emulation ".format(
-                    ':'.join(map(str, ansible_port_tuple)))
+                msg = "Unable to Add Port Check port {} is valid and of the " \
+                      "correct emulation ".format(':'.join(map(str, ansible_port_tuple)))
+                self._module.fail_json(msg=msg)
+
+    def _pre_checks(self):
+        """
+        Launch some pre-checks before attempting creating or modifying a PG
+        :return: None
+        """
+        if self._array_ports:
+            # Collect port list from array and transform it to format
+            # ["FA-2D:4", "FA-2D:6", ...]
+            ports_list = self._conn.provisioning.get_port_list()
+            valid_array_ports = list(map(lambda x: "{}:{}"
+                                         .format(x['directorId'], x['portId']),
+                                         ports_list))
+
+            # Check if all ports exist on the array
+            if not set(self._array_ports).issubset(valid_array_ports):
+                self._module.fail_json(msg="some port are not found on the array."
+                                           "check input {}."
+                                       .format(self._array_ports),
+                                       changed=self._changed)
 
     def _remove_ports(self, actual_ports_in_pg):
         """
-        Remove a list of port from a portgroup
-        :param actual_ports_in_pg: list of port that are actually in portgroup
-        :return:
+        Remove a list of port from a PortGroup
+        :param actual_ports_in_pg: list of port that are actually in PortGroup
+        :return: None
         """
-        # make a list with port to remove that are  actually in portgroup
+        # Make a list with port to remove that are  actually in PortGroup
         ports_in_pg = set(self._array_ports) & set(actual_ports_in_pg)
         for port in ports_in_pg:
             ansible_port_tuple = tuple(port.split(":"))
             try:
-                self._conn.provisioning.modify_portgroup(
-                    portgroup_id=self._portgroup_id,
-                    remove_port=ansible_port_tuple)
+                self._conn.provisioning.\
+                    modify_portgroup(portgroup_id=self._portgroup_id,
+                                     remove_port=ansible_port_tuple)
                 self._changed = True
                 self._message.append("Port {} removed."
-                                     .format(
-                    ':'.join(map(str, ansible_port_tuple))))
+                                     .format(':'.join(map(str, ansible_port_tuple))))
 
             except Exception as error:
-                msg = "Unable to remove one or more ports " \
-                      "specified"
+                msg = "Unable to remove one or more ports specified"
                 self._module.fail_json(msg="{}. Error {}".format(msg, error),
                                        changed=self._changed)
 
-    def _create_or_modify_portgroup(self):
-        if not self._array_ports:
-            self._module.fail_json(msg="array_ports cannot be empty. "
-                                       "check input.",
-                                   changed=self._changed)
+    def _rename_portgroup(self):
+        """
+        Renaming an existing PortGroup
+        :return: None
+        """
+        try:
+            self._conn.provisioning.\
+                modify_portgroup(portgroup_id=self._portgroup_id,
+                                 rename_portgroup=self._module.params['new_portgroup_id'])
 
-        # Collect port list from array and transform it to format
-        # ["FA-2D:4", "FA-2D:6", ...]
-        ports_list = self._conn.provisioning.get_port_list()
-        valid_array_ports = list(map(lambda x: "{}:{}"
-                                     .format(x['directorId'], x['portId']),
-                                     ports_list))
+            self._changed = True
+            # Updating portgroup_id to be consistent with the next facts gathering
+            self._portgroup_id = self._module.params['new_portgroup_id']
+            self._message.append("PortGroup renamed to {}".format(self._portgroup_id))
 
-        # check if all ports exist on the array
-        if not set(self._array_ports).issubset(valid_array_ports):
-            self._module.fail_json(msg="some port are not found on the array."
-                                       "check input {}."
-                                   .format(self._array_ports),
-                                   changed=self._changed)
+        except Exception as error:
+            self._module.fail_json(msg="Unable to rename PortGroup ({})".
+                                   format(error))
 
-        pg_list = self._conn.provisioning.get_portgroup_list()
+    def _updating_portgroup(self):
+        """
+        Updating an existing PortGroup (adding/removing ports)
+        :return: None
+        """
+        # Collect actual port in PG
+        dict_ports_in_pg = self._conn. \
+            provisioning. \
+            get_portgroup(portgroup_id=self._portgroup_id)["symmetrixPortKey"]
 
-        # Check if Port group exists
-        if self._portgroup_id not in pg_list:
-            self._create_portgroup()
+        # normalise array_pg dictionary list to match expected,
+        # bug fix until 9.1 in there to account for incorrect
+        # key data being returned on some systems.
+        # PortId was being returned in the
+        # format FA11D:6 instead of just the 6
+        actual_ports_in_pg = []
+        for i in dict_ports_in_pg:
+            try:
+                split = i['portId'].split(':')
+                i['portId'] = split[1]
+            except IndexError:
+                actual_ports_in_pg.append(i)
 
-        elif self._portgroup_id in pg_list:
-            # Collect actual port in pg
-            dict_ports_in_pg = self._conn.provisioning.get_portgroup(
-                portgroup_id=self._portgroup_id)["symmetrixPortKey"]
-            # normalise array_pg dictionary list to match expected,
-            # bug fix until 9.1 in there to account for incorrect
-            # key data being returned on some systems.
-            # PortId was being returned in the
-            # format FA11D:6 instead of just the 6
-            actual_ports_in_pg = []
-            for i in dict_ports_in_pg:
-                try:
-                    split = i['portId'].split(':')
-                    i['portId'] = split[1]
-                except IndexError:
-                    pass
-                    actual_ports_in_pg.append(i)
+        if self._module.params['port_state'] == 'in_pg':
+            self._add_new_ports(actual_ports_in_pg)
 
-            if self._module.params['port_state'] == 'in_pg':
-                self._add_new_ports(actual_ports_in_pg)
-
-            elif self._module.params['port_state'] == 'out_of_pg':
-                self._remove_ports(actual_ports_in_pg)
+        elif self._module.params['port_state'] == 'out_of_pg':
+            self._remove_ports(actual_ports_in_pg)
 
     def _delete_portgroup(self):
+        """
+        Deleting a PortGroup
+        :return: None
+        """
         # Build a list of Port Groups that are not in masking view
-        pg_list = self._conn.provisioning.get_portgroup_list(
-            filters=({"num_of_masking_views": "0"}))
-        if self._portgroup_id in pg_list:
-            self._conn.provisioning.delete_portgroup(
-                self._portgroup_id)
+        if self._portgroup_id in self._conn.provisioning. \
+                get_portgroup_list(filters=({"num_of_masking_views": "0"})):
+            self._conn.provisioning.delete_portgroup(self._portgroup_id)
             self._changed = True
-            self._message = "Port Group {} Deleted ".format(self._portgroup_id)
+            self._message.append("Port Group {} Deleted ".format(self._portgroup_id))
 
     def apply_module(self):
+        """
+        Main function for that object
+        :return: None
+        """
+        # if 'present' try to create/update/rename a PortGroup
         if self._module.params['state'] == 'present':
-            self._create_or_modify_portgroup()
+            self._pre_checks()
+            if self._portgroup_id not in self._conn.provisioning.get_portgroup_list():
+                self._create_portgroup()
+
+            else:
+                # if renaming is required, this task will be exclusive
+                if self._module.params['new_portgroup_id']:
+                    self._rename_portgroup()
+                else:
+                    self._updating_portgroup()
 
         elif self._module.params['state'] == 'absent':
             self._delete_portgroup()
 
         else:
-            self._module.fail_json(msg='unsupported action',
-                                   changed=self._changed)
+            self._module.fail_json(msg='unsupported action', changed=self._changed)
 
         # Importing Py4UV exception
         from PyU4V.utils.exception import ResourceNotFoundException
         try:
-            pg_details = self._conn.provisioning. \
-                get_portgroup(self._portgroup_id)
+            pg_details = self._conn.provisioning.get_portgroup(self._portgroup_id)
+
         except ResourceNotFoundException:
-            pg_details = "Port group {} does not exist" \
-                .format(self._portgroup_id)
+            pg_details = "Port group {} does not exist".format(self._portgroup_id)
+
         if not self._message:
-            self._message = "No Changes made. Already in that state."
+            self._message.append("No Changes made. Already in that state.")
 
         facts = ({'message': self._message, 'portgroup_details': pg_details})
         result = {'state': 'info', 'changed': self._changed}
-        self._module.exit_json(ansible_facts={'portgroup_detail': facts},
-                               **result)
+        self._module.exit_json(ansible_facts={'portgroup_detail': facts}, **result)
 
 
 def main():
+    """
+    Main function
+    :return: None
+    """
     DellEmcPortGroup().apply_module()
 
 

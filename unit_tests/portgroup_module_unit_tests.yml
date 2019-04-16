@@ -1,10 +1,13 @@
 ---
+
 - name: "Port Group Unit Tests"
   hosts: localhost
   connection: local
   gather_facts: no
+
   vars_files:
   - vars.yml
+
   vars:
     input: &uni_connection_vars
       array_id: "{{ array_id }}"
@@ -13,39 +16,76 @@
       universion: "{{ universion }}"
       user: "{{   user  }}"
       verifycert: "{{ verifycert }}"
+    pgname: "Ansible_PG"
+    new_pgname: "NewAnsible_PG"
+    port1: "FA-1D:4"
+    port2: "FA-2D:4"
+    port3: "FA-2D:7"
+
   tasks:
-  - name: "Create New Port Group and add ports"
+  - name: "Create New Port Group {{ pgname }} and add ports"
     dellemc_pmax_portgroup:
       <<: *uni_connection_vars
-      portgroup_id: "Ansible_PG"
+      portgroup_id: "{{ pgname }}"
       array_ports:
-      - FA-1D:4
-      - FA-2D:4
+      - "{{ port1 }}"
+      - "{{ port2 }}"
       state: present
       port_state: in_pg
-# adds the specified port to the port group
-  - name: "Remove ports"
+  - debug: var=portgroup_detail
+
+  - name: "Add ports {{ port3 }}"
     dellemc_pmax_portgroup:
       <<: *uni_connection_vars
-      portgroup_id: "Ansible_PG2"
+      portgroup_id: "{{ pgname }}"
       array_ports:
-      - FA-2D:8
+      - "{{ port3 }}"
       state: present
       port_state: in_pg
-# Removes the specified port from the port group
-  - name: "Remove ports"
+  - debug: var=portgroup_detail
+
+  - name: "Test idempotent Add ports {{ port3 }}"
     dellemc_pmax_portgroup:
       <<: *uni_connection_vars
-      portgroup_id: "Ansible_PG2"
+      portgroup_id: "{{ pgname }}"
       array_ports:
-      - FA-2D:8
+      - "{{ port3 }}"
+      state: present
+      port_state: in_pg
+  - debug: var=portgroup_detail
+
+  - name: "Remove ports {{ port3 }}"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "{{ pgname }}" 
+      array_ports:
+      - "{{ port3 }}"
       state: present
       port_state: out_of_pg
-  - name: "Delete portgroup"
+  - debug: var=portgroup_detail
+
+  - name: "Test idempotent : Remove ports {{ port3 }}"
     dellemc_pmax_portgroup:
       <<: *uni_connection_vars
-      portgroup_id: "Ansible_PG2"
+      portgroup_id: "{{ pgname }}"
       array_ports:
-      - FA-2D:8
+      - "{{ port3 }}"
+      state: present
+      port_state: out_of_pg
+  - debug: var=portgroup_detail
+
+  - name: "Renaming PortGroup {{ pgname }} to {{ new_pgname }}"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "{{ pgname }}"
+      new_portgroup_id: "{{ new_pgname }}"
+      state: present
+  - debug: var=portgroup_detail
+
+  - name: "Delete portgroup {{ new_pgname }}"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "{{ new_pgname }}"
       state: absent
       port_state: out_of_pg
+  - debug: var=portgroup_detail
