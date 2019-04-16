@@ -18,15 +18,15 @@
   tasks:
   - name: Create Host
     dellemc_pmax_host:
-        <<: *uni_connection_vars
-        initiator_list:
-          - 1000000fc98ffea2
-          - 1000000fc98ffeb3
-        host_id: "AnsibleHost1"
-        host_type: default
-        consistent_lun: false
-        state: present
-        wwn_state: present
+      <<: *uni_connection_vars
+      initiator_list:
+        - 1000000fc98ffea2
+        - 1000000fc98ffeb3
+      host_id: "AnsibleHost1"
+      host_type: default
+      consistent_lun: false
+      state: present
+      wwn_state: present
 
   - name: Create Port Group
     dellemc_pmax_portgroup:
@@ -45,10 +45,10 @@
       slo: "Diamond"
       luns:
         - num_vols: 1
-          cap_gb: 2
+          cap_gb: 4
           vol_name: "UnittestPlaybookMV"
       state: present
-      no_compression: true
+      compression: true
 
   - name: Create Masking View
     dellemc_pmax_maskingview:
@@ -70,6 +70,14 @@
       state: present
   - debug: var=maskingview_detail
 
+  - name: Try to rename this Masking View
+    dellemc_pmax_maskingview:
+      <<: *uni_connection_vars
+      maskingview_name: "Ansible_MV"
+      new_maskingview_name: "NewAnsible_MV"
+      state: present
+  - debug: var=maskingview_detail
+
 
   ################
   # Cleanup steps
@@ -80,7 +88,7 @@
       sgname: "AnsibleSG1"
       portgroup_id: "AnsiblePG1"
       host_or_cluster : "AnsibleHost1"
-      maskingview_name: "Ansible_MV"
+      maskingview_name: "NewAnsible_MV"
       state: absent
   - debug: var=maskingview_detail
 
@@ -113,7 +121,7 @@
       slo: "Diamond"
       luns:
       - num_vols: 1
-        cap_gb: 2
+        cap_gb: 4
         vol_name: "Unittest Playbook MV"
       state: absent
-      no_compression: true
+      compression: true
