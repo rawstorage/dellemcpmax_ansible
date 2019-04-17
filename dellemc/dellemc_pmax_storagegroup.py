@@ -25,17 +25,15 @@ author:
   - "Julien Brusset (@jbrt)"
 short_description: "Storage group Control Module for Dell EMC PowerMax or 
 VMAX All Flash Arrays, This module can create or delete storage groups and 
-manipulate size and number of volumes given in volume requests list. volume 
+manipulate number of volumes given in volume requests list. volume 
 removal is handled in dellemc_pmax_volume module, to build a requests list 
 for an existing storage group you can run with an empty requests list and 
 examine the return"
-
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
   and PowerMAX. Every effort has been made to verify the scripts run with 
   valid input. These modules are a tech preview."
-
 module: dellemc_pmax_storagegroup
 options:
   array_id:
@@ -47,17 +45,20 @@ options:
       - "Storage Group name 32 Characters no special characters other than
       underscore."
     required: true
+  new_sgname:
+    description:
+      - "New Storage Group name 32 Characters no special characters other than
+      underscore."
+    required: false
   slo:
     description:
       - "Service Level for the storage group, Supported on VMAX3 and All Flash
       and PowerMAX NVMe Arrays running PowerMAX OS 5978 and above.  Default is
       set to Diamond, but user can override this by setting a different value."
     required: false
-  no_compression:
+  compression:
     description:
-      - "Set the compression on the Storage Group at creation time, 
-      to disable compression set this to true"
-    required: false
+      - "Set the compression on the Storage Group to create"
   unispherehost:
     description:
       - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
@@ -81,9 +82,7 @@ options:
   luns:
     description:
       - "List of volume requests to be added or already in storage group. 
-      Each request in the list provided should have a unique combination of 
-      num_vols, cap_gb, vol_name. Volume Name should be unique to the 
-      request. Increasing size or num_volumes on a volume request 
+      Increasing size or num_volumes on a volume request 
       would add or expand capacity for volumes in requests list.  If empty 
       list is provided current contents of storage group will be returned: See 
       examples for usage"
@@ -92,17 +91,16 @@ options:
     Default: empty list which will try to create storage group with no volumes 
   state:
     description:
-      - "Valid values are present, absent, or current. Present will create 
+      - "Valid values are present or  absent. Present will create 
       storage group if it doesn't already exist, absent will attempt to 
       delete"
     type: string
     required: true
-
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
   - "VMAX All Flash, VMAX3, or PowerMax storage Array."
-  - "PyU4V version 3.0.0.9 or higher using PIP python -m pip install PyU4V"
+  - "PyU4V version 3.0.0.10 or higher using PIP python -m pip install PyU4V"
 '''
 EXAMPLES = '''
 #!/usr/bin/env ansible-playbook
@@ -122,10 +120,10 @@ EXAMPLES = '''
       user : "{{   user  }}"
       verifycert : "{{ verifycert }}"
 # Each item will be treated as a request for volumes of the same size
-# volume name must be unique per request, all sizes are GB values.  A
-# request can have multiple volumes with the same name, however module
-# will not run if it detects two requests with same name.  This is self
-# imposed restriction to make idempotence easier for change tracking.
+# , all sizes are GB values.
+# A request can have multiple volumes with the same name, however module
+# will only kept the last vol_name. This is self imposed restriction 
+# to make idempotence easier for change tracking.
     lun_request :
       - num_vols : 1
         cap_gb: 4
@@ -136,7 +134,6 @@ EXAMPLES = '''
       - num_vols: 1
         cap_gb: 3
         vol_name: "FRA"
-
   tasks:
   - name: "Create New Storage Group volumes"
     dellemc_pmax_storagegroup:
@@ -186,7 +183,13 @@ EXAMPLES = '''
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: present
-    tasks:
+  - name: "Renaming SG"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_SG"
+      new_sgname: "NewAnsible_SG"
+      slo: "Diamond"
+      state: present
   - name: "Delete Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
@@ -194,490 +197,406 @@ EXAMPLES = '''
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: absent
-
 '''
 RETURN = r'''
 ok: [localhost] => {
     "storagegroup_detail": {
-        "message": "no changes made",
-        "sg_volumes": [
+        "lun_request": [
             {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00178",
-                "wwn": "60000970000197600156533030313738"
+                "cap_gb": 1,
+                "num_vols": 4
             },
             {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00179",
-                "wwn": "60000970000197600156533030313739"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017A",
-                "wwn": "60000970000197600156533030313741"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017B",
-                "wwn": "60000970000197600156533030313742"
+                "cap_gb": 2,
+                "num_vols": 1
             }
         ],
-        "storagegroup_detail": {
-            "VPSaved": "100.0%",
-            "base_slo_name": "Diamond",
-            "cap_gb": 4.01,
-            "compression": true,
-            "device_emulation": "FBA",
-            "num_of_child_sgs": 0,
-            "num_of_masking_views": 0,
-            "num_of_parent_sgs": 0,
-            "num_of_snapshots": 0,
-            "num_of_vols": 4,
-            "service_level": "Diamond",
-            "slo": "Diamond",
-            "slo_compliance": "STABLE",
-            "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG",
-            "type": "Standalone",
-            "unprotected": true,
-            "vp_saved_percent": 100.0
-        },
+        "message": [
+            "SG Ansible_SG already exists",
+            "SLO of SG Ansible_SG already Diamond",
+            "1 volume(s) of 1 GB added"
+        ],
+        "sg_volumes": [
+            {
+                "cap_gb": 1.0,
+                "vol_name": "REDO",
+                "volumeId": "000DC",
+                "wwn": "60000970000297800941533030304443"
+            },
+            {
+                "cap_gb": 1.0,
+                "vol_name": "REDO",
+                "volumeId": "000DD",
+                "wwn": "60000970000297800941533030304444"
+            },
+            {
+                "cap_gb": 2.0,
+                "vol_name": "DATA",
+                "volumeId": "000DE",
+                "wwn": "60000970000297800941533030304445"
+            },
+            {
+                "cap_gb": 1.0,
+                "vol_name": "REDO",
+                "volumeId": "000DF",
+                "wwn": "60000970000297800941533030304446"
+            },
+            {
+                "cap_gb": 1.0,
+                "vol_name": "REDO",
+                "volumeId": "000E0",
+                "wwn": "60000970000297800941533030304530"
+            }
+        ],
         "storagegroup_name": "Ansible_SG"
     }
 }
-ok: [localhost] => {
-    "storagegroup_detail": {
-        "message": "no changes made",
-        "sg_volumes": [
-            {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00178",
-                "wwn": "60000970000197600156533030313738"
-            },
-            {
-                "vol_name": "DATA",
-                "cap_gb": 1.0,
-                "volumeId": "00179",
-                "wwn": "60000970000197600156533030313739"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017A",
-                "wwn": "60000970000197600156533030313741"
-            },
-            {
-                "vol_name": "REDO",
-                "cap_gb": 1.0,
-                "volumeId": "0017B",
-                "wwn": "60000970000197600156533030313742"
-            }
-        ],
-        "storagegroup_detail": {
-            "VPSaved": "100.0%",
-            "base_slo_name": "Diamond",
-            "cap_gb": 4.01,
-            "compression": true,
-            "device_emulation": "FBA",
-            "num_of_child_sgs": 0,
-            "num_of_masking_views": 0,
-            "num_of_parent_sgs": 0,
-            "num_of_snapshots": 0,
-            "num_of_vols": 4,
-            "service_level": "Diamond",
-            "slo": "Diamond",
-            "slo_compliance": "STABLE",
-            "srp": "SRP_1",
-            "storageGroupId": "Ansible_SG",
-            "type": "Standalone",
-            "unprotected": true,
-            "vp_saved_percent": 100.0
-        },
-        "storagegroup_name": "Ansible_SG"
-    }
-}
-
-
 '''
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
+def unique_and_count(lst):
+    """
+    :param lst:
+    :return: list of unique dicts with a 'count' key added"
+    """
+
+    def canonicalize_dict(x):
+        """
+        Return a (key, value) list sorted by the hash of the key
+        """
+        return sorted(x.items(), key=lambda x: hash(x[0]))
+
+    grouper = groupby(sorted(map(canonicalize_dict, lst)))
+    return [dict(k + [("count", len(list(g)))]) for k, g in grouper]
+
+
 class DellEmcStorageGroup(object):
+    """
+    Manipulating a Storage Group (creating, deleting, or modifying)
+    """
+
     def __init__(self):
-        self.argument_spec = dellemc_pmax_argument_spec()
-        self.argument_spec.update(dict(
+        self._argument_spec = dellemc_pmax_argument_spec()
+        self._argument_spec.update(dict(
             sgname=dict(type='str', required=True),
-            slo=dict(type='str', choices=['Diamond', 'Platinum', 'Gold',
-                                          'Silver', 'Bronze', 'None'],
-                     required=True),
+            new_sgname=dict(type='str', required=False),
+            slo=dict(type='str',
+                     choices=['Diamond', 'Platinum', 'Gold',
+                              'Silver', 'Bronze'],
+                     required=False,
+                     default=None),
             luns=dict(type='list', required=False),
-            state=dict(type='str', choices=['present', 'absent'],
+            state=dict(type='str',
+                       choices=['present', 'absent'],
                        required=True),
             no_compression=dict(type='bool', required=False)
         ))
 
-        self.module = AnsibleModule(argument_spec=self.argument_spec)
-        self.conn = pmaxapi(self.module)
+        self._module = AnsibleModule(argument_spec=self._argument_spec)
+        self._conn = pmaxapi(self._module)
+        self._changed = False
+        self._lun_request = []
+        self._message = []
+        self._sg_name = self._module.params['sgname']
 
-    def change_service_level(self):
+        # Parsing the lun_request if exists
+        if self._module.params['luns']:
+            self._parsing_lun_request()
+
+    def _parsing_lun_request(self):
         """
-        Change Service Level on existing Storage Group
-        :return: Changed True or False
+        Parsing the lun_request structure, aggregate duplicates if found
+        :return: None
         """
-        payload = {
-            "editStorageGroupActionParam": {
-                "editStorageGroupSLOParam": {
-                    "sloId": self.module.params['slo']
-                }
-            }
-        }
-        try:
-            self.conn.provisioning.\
-                modify_storage_group(storagegroup=self.module.params['sgname'],
-                                     payload=payload)
-            changed = True
+        mapping = {}  # Will contains cap size as key (details as values)
+        for g in self._module.params['luns']:
+            # If this size of LUN has never seen before, we save it
+            if g['cap_gb'] not in mapping:
+                mapping[g['cap_gb']] = {'number': int(g['num_vols']),
+                                        'name': g.get('vol_name', None)}
 
-        except Exception:
-            changed = False
+            # If this LUN size already seen
+            # We have to add the number of LUNs to get the total number of
+            # LUNs of that given size
+            else:
+                mapping[g['cap_gb']]['number'] += int(g['num_vols'])
+                if 'vol_name' in g:
+                    mapping[g['cap_gb']]['name'] = g['vol_name']
 
-        finally:
-            return changed
+        # Dumping the final data structure into the target variable
+        for lun_size in mapping:
+            self._lun_request.append({'num_vols': mapping[lun_size]['number'],
+                                      'cap_gb': lun_size,
+                                      'vol_name': mapping[lun_size]['name']})
 
-    def sg_lunlist(self):
+    def _get_sg_lun_list(self):
         """
         Get a list of volumes/luns in the storage group and return a list
-        :return: formatted list of luns currently in the storage grou
+        :return: formatted list of luns currently in the storage group
         """
-        sg_lunlist = self.conn.provisioning.get_volume_list(
-            filters={'storageGroupId': self.module.params['sgname']})
-        lunsummary = []
+        sg_lunlist = self._conn.provisioning.\
+            get_volume_list(filters={'storageGroupId': self._sg_name})
+
+        result = []
         if sg_lunlist:
             for lun in sg_lunlist:
-                lundetails = self.conn.provisioning.get_volume(lun)
-                sglun = {}
-                sglun['volumeId'] = lundetails['volumeId']
-                sglun['cap_gb'] = lundetails['cap_gb']
-                sglun['wwn'] = lundetails['effective_wwn']
-                if 'volume_identifier' in lundetails:
-                    sglun['vol_name'] = lundetails['volume_identifier']
+                lun_details = self._conn.provisioning.get_volume(lun)
+                sg_lun = {'volumeId': lun_details['volumeId'],
+                          'cap_gb': lun_details['cap_gb'],
+                          'wwn': lun_details['effective_wwn']}
+                if 'volume_identifier' in lun_details:
+                    sg_lun['vol_name'] = lun_details['volume_identifier']
+
                 else:
-                    sglun['vol_name'] = "NO_LABEL"
-                lunsummary.append(sglun)
-        return lunsummary
+                    sg_lun['vol_name'] = "NO_LABEL"
+                result.append(sg_lun)
 
-    def canonicalize_dict(self, x):
-        """
-        :param x:
-        :return: "Return a (key, value) list sorted by the hash of the key"
-        """
+        return result
 
-        return sorted(x.items(), key=lambda x: hash(x[0]))
-
-    def unique_and_count(self, lst):
-        """
-        :param lst:
-        :return: list of unique dicts with a 'count' key added"
-        """
-        grouper = groupby(sorted(map(self.canonicalize_dict, lst)))
-        return [dict(k + [("count", len(list(g)))]) for k, g in grouper]
-
-    def current_sg_config(self):
+    def _current_sg_config(self):
         """
         Helper function returns list of dictionary that can be used to
         construct the list of volumes for changes or requests.
         :return: list of volume requests in SG in similar format to playbook
         input
         """
-        lunsummary = []
-        sglunlist = self.sg_lunlist()
-        for lun in sglunlist:
-            lundetails = self.conn.provisioning.get_volume(lun['volumeId'])
-            sglun = {}
-            sglun['vol_name'] = lundetails['volume_identifier']
-            sglun['cap_gb'] = int(lundetails['cap_gb'])
-            lunsummary.append(sglun)
-        current_config = self.unique_and_count(lunsummary)
+        lun_summary = []
+        for lun in self._get_sg_lun_list():
+            lun_details = self._conn.provisioning.get_volume(lun['volumeId'])
+            lun_summary.append({'cap_gb': int(lun_details['cap_gb'])})
+
+        current_config = unique_and_count(lun_summary)
         for i in current_config:
             i['num_vols'] = i.pop('count')
 
         return current_config
 
-    def create_sg(self):
+    def _change_service_level(self):
+        """
+        Change Service Level on existing Storage Group
+        :return: None
+        """
+        payload = {
+            "editStorageGroupActionParam": {
+                "editStorageGroupSLOParam": {
+                    "sloId": self._module.params['slo']
+                }
+            }
+        }
+        try:
+            if self._module.params['slo']:
+                sg_detail = self._conn.provisioning.get_storage_group(storage_group_name=self._sg_name)
+                if sg_detail['slo'] != self._module.params['slo']:
+
+                    self._conn.provisioning.\
+                        modify_storage_group(storagegroup=self._sg_name,
+                                             payload=payload)
+                    self._changed = True
+                    self._message.append("Applied {} SLO to {}".format(self._module.params['slo'],
+                                                                       self._sg_name))
+                else:
+                    self._message.append("SLO of SG {} already {}".
+                                         format(self._sg_name,
+                                                self._module.params['slo']))
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to modify SLO for {} ({})".
+                                       format(self._sg_name, error))
+
+    def _create_sg(self):
         """
         Create SG if needed and exit module gracefully with changes
-        :return:
+        :return: None
         """
-        changed = False
-        message = "no changes made"
-        sglist = self.conn.provisioning.get_storage_group_list()
-        if self.module.params["luns"]:
-            playbook_request = self.module.params["luns"]
-        else:
-            playbook_request = []
-        # Make sure there Volume Names are Unique in LUN List, if label is
-        # repeated on multiple requests, module will exit.
-        names = []
-        for lun_request_name in playbook_request:
-            if lun_request_name['vol_name'] in names:
-                self.module.exit_json(msg="Check format of volume request "
-                                          "list, vol_name should be unique "
-                                          "per "
-                                          "request")
-            else:
-                names.append(lun_request_name['vol_name'])
-
-        if self.module.params['sgname'] not in sglist:
+        if self._sg_name not in self._conn.provisioning.get_storage_group_list():
             # In case of compressed SG requested, we put the compression flag
-            # at ON. Warning: slo must be present for that option can works
-            # (cf. PyU4V)
-            if self.module.params['no_compression']:
-                    self.conn.provisioning.create_storage_group(srp_id='SRP_1',
-                                                                sg_id=
-                                                                self.module.params[
-                                                                    'sgname'],
-                                                                slo=
-                                                                self.module.params[
-                                                                    'slo'],
-                                                                do_disable_compression=self.module.params['no_compression'])
+            # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
+
+            srp = "None" if self._module.params['slo'] == "None" else "SRP_1"
+            if 'compression' in self._module.params:
+                _compression = False if self._module.params['compression'] else True
+                self._conn.provisioning.\
+                    create_storage_group(srp_id=srp,
+                                         sg_id=self._sg_name,
+                                         slo=self._module.params['slo'],
+                                         do_disable_compression=_compression)
             else:
-                self.conn.provisioning.create_storage_group(srp_id='SRP_1',
-                                                            sg_id=
-                                                            self.module.params[
-                                                                'sgname'],
-                                                            slo=
-                                                            self.module.params[
-                                                                'slo'])
-            changed = True
-            message = "Empty Storage Group Created"
+                self._conn.provisioning.\
+                    create_storage_group(srp_id=srp,
+                                         sg_id=self._sg_name,
+                                         slo=self._module.params['slo'])
 
-            if playbook_request:
-                for lun in playbook_request:
-                    self.conn.provisioning.\
-                        add_new_vol_to_storagegroup(sg_id=self.module.params['sgname'],
-                                                    cap_unit="GB",
-                                                    num_vols=lun['num_vols'],
-                                                    vol_size=lun['cap_gb'],
-                                                    vol_name=lun['vol_name'],
-                                                    create_new_volumes=False)
-                message = "New Storage Group Created and Volumes Added"
-        # If the storage group exists, need to check if the volume
-        # configuration and size matches the playbook
-        elif self.module.params['sgname'] in sglist and playbook_request:
-            message = self.check_volume_changes()
+            self._changed = True
+            self._message.append("Empty Storage Group {} Created".format(self._sg_name))
+        else:
+            self._message.append("SG {} already exists".format(self._sg_name))
 
-        lunsummary = self.sg_lunlist()
-
-        facts = ({'storagegroup_name': self.module.params['sgname'],
-                  'storagegroup_detail':
-                      self.conn.provisioning.get_storage_group(
-                          storage_group_name=self.module.params['sgname']),
-                  'sg_volumes': lunsummary,
-                  'message': message})
-        result = {'state': 'info', 'changed': changed}
-
-        self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                              **result)
-
-    def check_volume_changes(self):
-        changed = False
-        """
-        Usually called on existing storage group and determines and makes
-        changes per the lun request list supplied in the playbook
-        :return: String Detailing Changes made.
-        """
-        message = "No Changes Made"
-        changed = self.change_service_level()
-        current = self.current_sg_config()
-
-        sg_summary = self.conn.provisioning.get_storage_group(
-                          storage_group_name=self.module.params['sgname'])
-
-        if sg_summary['num_of_vols'] == 0 \
-                and sg_summary['type'] == 'Standalone':
-
-            for request in self.module.params['luns']:
-                self.conn.provisioning.add_new_vol_to_storagegroup(
-                    sg_id=self.module.params['sgname'],
-                    cap_unit="GB",
-                    num_vols=request['num_vols'],
-                    vol_size=request['cap_gb'],
-                    vol_name=request['vol_name'],create_new_volumes=False)
-
-        sglunnames = []
-        for lunname in current:
-            sglunnames.append(lunname['vol_name'].upper())
-
-        if len(current) > len(self.module.params['luns']):
-            facts = ({'storagegroup_name': self.module.params['sgname'],
-                      'storage_group_current_config': current,
-                      'message': "Volume Requests must contain current "
-                                 "config plus additional requests, "
-                                 "operations on a subset of volumes not "
-                                 "supported with this module."})
-            result = {'state': 'info', 'changed': changed}
-
-            self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                                  **result)
-
-        for request in self.module.params['luns']:
-            if request['vol_name'].upper() not in sglunnames:
-                self.conn.provisioning.add_new_vol_to_storagegroup(
-                    sg_id=self.module.params['sgname'],
-                    cap_unit="GB",
-                    num_vols=request['num_vols'],
-                    vol_size=request['cap_gb'],
-                    vol_name=request['vol_name'].upper(),
-                    create_new_volumes=False)
-                message = "Volumes Added"
-                changed = True
-
-            else:
-                # Check to see if any current volume set needs to be changed.
-                for currentlunset in current:
-                    if request['vol_name'] == currentlunset['vol_name']:
-                        if request['num_vols'] > currentlunset['num_vols'] \
-                                and request['cap_gb'] == currentlunset[
-                                'cap_gb']:
-                            new_vols = request['num_vols'] - currentlunset[
-                                'num_vols']
-                            self.conn.provisioning.add_new_vol_to_storagegroup(
-                                sg_id=self.module.params['sgname'],
-                                cap_unit="GB",
-                                num_vols=new_vols,
-                                vol_size=request['cap_gb'],
-                                vol_name=request['vol_name'],
-                                create_new_volumes=False)
-                            message = message + "Volumes Added"
-                            changed = True
-                        elif request['num_vols'] == currentlunset[
-                            'num_vols'] and \
-                                request['cap_gb'] > currentlunset['cap_gb']:
-                            self.resize_sg_vols(volname=request[
-                                'vol_name'], newsize=request['cap_gb'])
-                            message = "Capacity increased for volumes with " \
-                                      "label " + request['vol_name']
-                            changed = True
-                        elif request['num_vols'] > currentlunset[
-                            'num_vols'] and \
-                                request['cap_gb'] > currentlunset['cap_gb']:
-                            new_vols = request['num_vols'] - currentlunset[
-                                'num_vols']
-                            self.resize_sg_vols(volname=request[
-                                'vol_name'], newsize=request['cap_gb'])
-                            self.conn.provisioning.add_new_vol_to_storagegroup(
-                                sg_id=self.module.params['sgname'],
-                                cap_unit="GB",
-                                num_vols=new_vols,
-                                vol_size=request['cap_gb'],
-                                vol_name=request['vol_name'],
-                                create_new_volumes=False)
-                            changed = True
-                            message = "volumes added and resized"
-                        elif request['num_vols'] < currentlunset['num_vols']:
-                            self.module.exit_json(msg="Module doesn't support "
-                                                  "removing devices please "
-                                                      "use volumes module "
-                                                      "for this operation " +
-                                                      str(currentlunset) +
-                                                      "playbook is trying " +
-                                                      str(request),
-                                                  changed=changed)
-
-        lunsummary = self.sg_lunlist()
-        facts = ({'storagegroup_name': self.module.params['sgname'],
-                  'storagegroup_detail':
-                      self.conn.provisioning.get_storage_group(
-                          storage_group_name=self.module.params['sgname']),
-                  'sg_volumes': lunsummary,
-                  'message': message})
-        result = {'state': 'info', 'changed': changed}
-
-        self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                              **result)
-
-    def resize_sg_vols(self, volname, newsize):
-        """
-        :param volname: identifier name for volume to be resized
-        :param newsize: Requested size in GB.
-        :return:
-        """
-        # Assumes volumes already exist in storage group.  Attempts to match
-        # volume based on volume label.
-        sglunlist = self.sg_lunlist()
-        for existinglun in sglunlist:
-                # checking list of luns each volume identifer will be
-                # checked to see if it will be resized
-            if volname == existinglun['vol_name']:
-                self.conn.provisioning.\
-                    extend_volume(new_size=newsize,
-                                  device_id=existinglun['volumeId'])
-
-    def delete_sg(self):
+    def _delete_sg(self):
         """
         Delete Storage Group
-        :return:
+        :return: None
         """
-        changed = False
-        # Compile a list of existing storage groups.
-        sglist = self.conn.provisioning.get_storage_group_list()
-        message = "Resource already in the requested state"
-        if self.module.params['sgname'] in sglist:
-            sgmaskingviews = self.conn.provisioning.\
-                get_masking_views_from_storage_group(
-                    storagegroup=self.module.params['sgname'])
+        # SG must exists before go ahead (obviously...)
+        if self._sg_name not in self._conn.provisioning.get_storage_group_list():
+            self._module.fail_json(msg="SG {} doesn't exists".format(self._sg_name))
 
-            if not sgmaskingviews:
-                # Remove volume label name before deleting storage group
-                lunlist = self.sg_lunlist()
-                for lun in lunlist:
-                    # Remove labels from devices before deleting to ensure
-                    # they are valid for re-use.
-                    self.conn.provisioning._modify_volume(
-                        device_id=lun['volumeId'], payload={
-                            "editVolumeActionParam": {
-                                "modifyVolumeIdentifierParam": {
-                                    "volumeIdentifier": {
-                                        "volumeIdentifierChoice":
-                                            "none"
-                                    }
-                                }},
-                            "executionOption": "ASYNCHRONOUS"
-                        })
-                try:
-                    self.conn.provisioning.delete_storagegroup(
-                    storagegroup_id=self.module.params['sgname'])
-                    changed = True
-                    message = "Delete Operation Completed"
-                except Exception:
-                    message = "Unable to Delete Storage Group, check that it " \
-                              "is not a child SG, use cascadedsg module to " \
-                              "remove child from parent before delete"
+        masking_view = self._conn.provisioning.\
+            get_masking_views_from_storage_group(storagegroup=self._sg_name)
 
-            else:
-                message = "Storage Group is Part of a Masking View"
-        sglistafter = self.conn.provisioning.get_storage_group_list()
-        facts = ({'storagegroups': sglistafter, 'message': message})
-        result = {'state': 'info', 'changed': changed}
-        self.module.exit_json(ansible_facts={'storagegroup_detail': facts},
-                              **result)
+        if masking_view:
+            self._message.append("Storage Group {} is Part of a Masking View".
+                                 format(self._sg_name))
+            self._module.fail_json(msg=self._message)
+
+        self._conn.provisioning.delete_storagegroup(storagegroup_id=self._sg_name)
+        self._changed = True
+        self._message.append("SG {} has been deleted".format(self._sg_name))
+
+    def _modify_sg(self):
+        """
+        Modify a Storage Group (meaning adding volumes if needed)
+        :return: None
+        """
+        # First, we extract the current config of the related SG (same format as lun_request)
+        current_config = self._current_sg_config()
+
+        if len(current_config) > len(self._lun_request):
+            message = "Volume requests must contain current config plus " \
+                      "additional requests, operations on a subset of " \
+                      "volumes not supported with this module."
+            self._module.fail_json(msg=message)
+
+        # Adding Volumes into a Parent SG is not supported
+        sg_details = self._conn.provisioning.get_storage_group(storage_group_name=self._sg_name)
+        if sg_details['type'] == 'Parent':
+            self._module.fail_json(msg="{} is a parent SG and it's not possible "
+                                       "to add volume in a parent SG".
+                                       format(self._sg_name))
+
+        # If the SG is empty, we add the whole lun_request inside it
+        elif sg_details['num_of_vols'] == 0:
+            for group in self._lun_request:
+                self._conn.provisioning. \
+                    add_new_vol_to_storagegroup(sg_id=self._sg_name,
+                                                cap_unit="GB",
+                                                num_vols=group['num_vols'],
+                                                vol_size=group['cap_gb'],
+                                                vol_name=group['vol_name'])
+                self._message.append("{} volume(s) of {} GB added".
+                                     format(group['num_vols'], group['cap_gb']))
+                self._changed = True
+
+        # Here, we assume that's the SG is not empty and we have to
+        # determine how many LUNs to add inside it
+        else:
+            for group in self._lun_request:
+                lun_to_create = group['num_vols']
+
+                # Let's determine if we need to add more volumes into the
+                # SG or not
+                for in_sg in current_config:
+                    # Loop until finding group of TDEVs with the same size as
+                    # requested
+                    if in_sg['cap_gb'] != group['cap_gb']:
+                        continue
+
+                    if in_sg['num_vols'] > group['num_vols']:
+                        msg = "There is {} vols of {} GB in {} actually. You " \
+                              "asked {} vols in your requests. This module " \
+                              "doesn't support volumes deletion (Backlog: {})".\
+                              format(in_sg['num_vols'],
+                                     in_sg['cap_gb'],
+                                     self._sg_name,
+                                     group['num_vols'],
+                                     ", ".join(self._message))
+                        self._module.exit_json(msg=msg)
+
+                    # Computing the exact number of LUNs to create (difference
+                    # between the request and existing)
+                    lun_to_create = group['num_vols'] - in_sg['num_vols']
+
+                if lun_to_create > 0:
+                    self._conn.provisioning. \
+                        add_new_vol_to_storagegroup(sg_id=self._sg_name,
+                                                    cap_unit="GB",
+                                                    num_vols=lun_to_create,
+                                                    vol_size=group['cap_gb'],
+                                                    vol_name=group['vol_name'])
+
+                    self._message.append("{} volume(s) of {} GB added".
+                                         format(lun_to_create, group['cap_gb']))
+                    self._changed = True
+                else:
+                    self._message.append("No new volume of {} GB to add in {}".
+                                         format(group['cap_gb'], self._sg_name))
+
+    def _rename_sg(self):
+        """
+        Renaming an existing StorageGroup
+        :return: None
+        """
+        try:
+            sg_list = self._conn.provisioning.get_storage_group_list()
+            if self._sg_name not in sg_list:
+                self._module.fail_json(msg="SG {} doesn't exists".format(self._sg_name))
+
+            if self._module.params['new_sgname'] in sg_list:
+                self._module.fail_json(msg="Target SG name {} already exists".
+                                       format(self._module.params['new_sgname']))
+
+            rename = {
+                "editStorageGroupActionParam": {
+                    "renameStorageGroupParam": {
+                        "new_storage_Group_name": self._module.params['new_sgname']
+                    }
+                }
+            }
+            self._conn.provisioning.modify_storage_group(storagegroup=self._sg_name,
+                                                         payload=rename)
+            self._changed = True
+            # Updating sg_name to be consistent with the next facts gathering
+            self._sg_name = self._module.params['new_sgname']
+            self._message.append("SG renamed to {}".format(self._sg_name))
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to rename SG({})".format(error))
 
     def apply_module(self):
+        """
+        Main function for that object
+        :return: None
+        """
+        facts = {}
 
-        if self.module.params['state'] == 'absent':
-            self.delete_sg()
-        elif self.module.params['state'] == "present":
-            self.create_sg()
+        # Storage Group deletion
+        if self._module.params['state'] == 'absent':
+            self._delete_sg()
+
+        # Storage Group creation and/or alteration
+        elif self._module.params['state'] == 'present':
+            # If we want to rename SG, this operation will done in first
+            # place and will be exclusive
+            if self._module.params['new_sgname']:
+                self._rename_sg()
+
+            else:
+                self._create_sg()
+                self._change_service_level()
+                if self._lun_request:
+                    self._modify_sg()
+            facts['sg_volumes'] = self._get_sg_lun_list()
+            facts['lun_request'] = self._current_sg_config()
+
+        facts['message'] = self._message
+        facts['storagegroup_name'] = self._sg_name
+        result = {'state': 'info', 'changed': self._changed}
+        self._module.exit_json(ansible_facts={'storagegroup_detail': facts}, **result)
 
 
 def main():
-    d = DellEmcStorageGroup()
-    d.apply_module()
+    DellEmcStorageGroup().apply_module()
 
 
 if __name__ == '__main__':

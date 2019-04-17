@@ -193,10 +193,17 @@
       slo: "Diamond"
       luns: "{{ empty_lun_request }}"
       state: present
+  - name: "Renaming Storage Group from {{ sg_name }} to {{ new_sg_name }}"
+    dellemc_pmax_storagegroup:
+      <<: *uni_connection_vars
+      sgname: "Ansible_UnitTest_SG"
+      new_sgname: "Ansible_UnitTest_SG_Renamed"
+      slo: "Diamond"
+      state: "present"
   - name: "Delete Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
       sgname: "Ansible_UnitTest_SG"
       slo: "Diamond"
-      luns: "{{ empty_lun_request }}"
+      luns: "Ansible_UnitTest_SG_Renamed"
       state: absent
