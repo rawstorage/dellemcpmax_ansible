@@ -159,17 +159,31 @@
 
   - debug: var=output
 
+  - name: rename a host
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        host_id: "AnsibleHost1"
+        new_host_id: "NewAnsibleHost1"
+        host_type: default
+        state: present
+
   - name: Deleting this Host
     dellemc_pmax_host:
         <<: *uni_connection_vars
         initiator_list:
         - 1000000cc98ffea2
         - 1000000cc98ffeb3
-        host_id: "AnsibleHost1"
+        host_id: "NewAnsibleHost1"
         host_type: hpux
         consistent_lun: true
         state: absent
         wwn_state: absent
     register: output
+
 
   - debug: var=output
