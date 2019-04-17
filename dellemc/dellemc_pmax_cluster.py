@@ -4,8 +4,12 @@
 # Author(s): Olivier Carminati <olivier.carminati@bpce-it.fr>
 # Author(s): Julien Brusset <julien.brusset.prestataire@bpce-it.fr>
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
+
 from __future__ import absolute_import, division, print_function
 from functools import partial
+
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 __metaclass__ = type
 
@@ -122,6 +126,17 @@ EXAMPLES = '''
         - AnsibleHost2
         state: present
         host_state: in_cluster
+  - name: Renaming a cluster
+    dellemc_pmax_cluster:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        cluster_name: "Cluster"
+        new_cluster_name: "NewCluster"
+        state: present
   - name: Delete Cluster
     dellemc_pmax_cluster:
         unispherehost: "{{unispherehost}}"
@@ -143,8 +158,6 @@ RETURN = r'''
         }
     },
 '''
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 BASE_FLAGS = {'volume_set_addressing': {'enabled': False, 'override': False},
               'disable_q_reset_on_ua': {'enabled': False, 'override': False},
@@ -167,11 +180,12 @@ class DellEmcPmaxCluster(object):
         self._argument_spec = dellemc_pmax_argument_spec()
         self._argument_spec.update(dict(
             cluster_name=dict(type='str', required=True),
-            host_list=dict(type='list', required=True),
+            new_cluster_name=dict(type='str', required=False),
+            host_list=dict(type='list', required=False),
             state=dict(type='str', required=True,
                        choices=['present', 'absent']),
             host_state=dict(type='str',
-                            required=True,
+                            required=False,
                             choices=['in_cluster', 'not_in_cluster'])
         ))
 
@@ -179,7 +193,7 @@ class DellEmcPmaxCluster(object):
         self._conn = pmaxapi(self._module)
 
         self._changed = False
-        self._message = ''
+        self._message = []
 
         self._cluster_name = self._module.params['cluster_name']
         self._host_list = self._module.params['host_list']
@@ -204,16 +218,47 @@ class DellEmcPmaxCluster(object):
             self._module.fail_json(msg='Error child hosts have mixed consistent'
                                        '_lun options. Hosts from a given '
                                        'HostGroup must have the same '
-                                       'consistent_lun parameters')
+                                       'consitent_lun parameters')
         return all(c_lun)
 
-    def _create_or_modify_hostgroup(self):
+    def _add_host_into_hostgroup(self):
+        """
+        Add host(s) to hostgroup
+        :return: None
+        """
+        hosts_to_add = []
+        try:
+            hosts_in_cluster = self._conn.provisioning.get_hostgroup(hostgroup_id=self._cluster_name)
+            hosts_in_cluster = [h['hostId'] for h in hosts_in_cluster['host']]
+            for host in self._host_list:
+                if host not in hosts_in_cluster:
+                    hosts_to_add.append(host)
+
+            if hosts_to_add:
+                self._conn.provisioning.\
+                    modify_hostgroup(hostgroup_id=self._cluster_name,
+                                     add_host_list=hosts_to_add)
+                self._changed = True
+                self._message.append("{} added to cluster {}".
+                                     format(", ".join(hosts_to_add),
+                                            self._cluster_name))
+
+            if not hosts_to_add:
+                self._message.append("Hostgroup in target state")
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to add hosts {} into {} "
+                                       "Cluster ({})".
+                                   format(self._host_list,
+                                          self._cluster_name,
+                                          error))
+
+    def _create_hostgroup(self):
         """
         Create or modify an host-group
         :return: (None)
         """
         hgrp_list = self._conn.provisioning.get_hostgroup_list()
-
         # Creating a brand new host-group
         if self._cluster_name not in hgrp_list:
 
@@ -222,6 +267,7 @@ class DellEmcPmaxCluster(object):
             create_hgrp = partial(self._conn.provisioning.create_hostgroup,
                                   hostgroup_id=self._cluster_name,
                                   host_list=self._host_list)
+
             if self._consistent_lun_needed():
                 flags = BASE_FLAGS.copy()
                 flags['consistent_lun'] = True
@@ -233,52 +279,75 @@ class DellEmcPmaxCluster(object):
             try:
                 create_hgrp()
                 self._changed = True
-                self._message = "Cluster {} created with {}".\
-                                format(self._cluster_name,
-                                       ", ".join(self._host_list))
+                self._message.append("Cluster {} created with {}".
+                                     format(self._cluster_name,
+                                            ", ".join(self._host_list)))
 
             except Exception as error:
                 self._module.fail_json(msg="Unable to create cluster {} ({})".
                                        format(self._cluster_name, error))
-
-        # Adding new host to an existing host-group
-        elif self._cluster_name in hgrp_list and self._host_state == 'in_cluster':
-            try:
-                self._conn.provisioning.\
-                    modify_hostgroup(hostgroup_id=self._cluster_name,
-                                     add_host_list=self._host_list)
-                self._changed = True
-                self._message = "{} added to cluster {}".\
-                                format(", ".join(self._host_list),
-                                       self._cluster_name)
-
-            except Exception as error:
-                self._module.fail_json(msg="Unable to add hosts {} into {} "
-                                           "Cluster ({})".
-                                       format(self._host_list,
-                                              self._cluster_name,
-                                              error))
-
-        # Removing an host from an existing host-group
-        elif self._cluster_name in hgrp_list and \
-                self._host_state == 'not_in_cluster':
-            try:
-                self._conn.provisioning.\
-                    modify_hostgroup(hostgroup_id=self._cluster_name,
-                                     remove_host_list=self._host_list)
-                self._changed = True
-                self._message = "{} removed from cluster {}".\
-                                format(", ".join(self._host_list),
-                                       self._cluster_name)
-
-            except Exception as error:
-                self._module.\
-                    fail_json(msg="Problem removing host {} from cluster {} ({})".
-                                  format(", ".join(self._host_list),
-                                         self._cluster_name,
-                                         error))
         else:
-            self._message = "Nothing changed"
+            self._message.append("Cluster already exists")
+
+    def _remove_host_from_hostgroup(self):
+        """
+        Remove host(s) from a hostgroup
+        :return: None
+        """
+        hosts_to_remove = []
+        already_outside = []
+        try:
+            hosts_in_cluster = self._conn.provisioning.get_hostgroup(hostgroup_id=self._cluster_name)
+            hosts_in_cluster = [h['hostId'] for h in hosts_in_cluster['host']]
+            for host in self._host_list:
+                if host in hosts_in_cluster:
+                    hosts_to_remove.append(host)
+                else:
+                    already_outside.append(host)
+
+            if hosts_to_remove:
+                self._conn.provisioning. \
+                    modify_hostgroup(hostgroup_id=self._cluster_name,
+                                     remove_host_list=hosts_to_remove)
+                self._changed = True
+                self._message.append("{} removed from cluster {}".
+                                     format(", ".join(hosts_to_remove),
+                                            self._cluster_name))
+
+            if already_outside:
+                self._message.append("{} not in {}".
+                                     format(", ".join(already_outside),
+                                            self._cluster_name))
+
+            if not hosts_to_remove:
+                self._message.append("No host removed")
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to add hosts {} into {} "
+                                       "Cluster ({})".
+                                   format(self._host_list,
+                                          self._cluster_name,
+                                          error))
+
+    def _rename_hostgroup(self):
+        """
+        Renaming an existing host-group
+        :return: None
+        """
+        try:
+            if self._cluster_name not in self._conn.provisioning.get_hostgroup_list():
+                self._module.fail_json(msg="Cluster {} doesn't exists".format(
+                    self._cluster_name))
+
+            self._conn.provisioning.modify_hostgroup(hostgroup_id=self._cluster_name,
+                                                     new_name=self._module.params['new_cluster_name'])
+            self._changed = True
+            # Updating cluster_name to be consistent with the next facts gathering
+            self._cluster_name = self._module.params['new_cluster_name']
+            self._message.append("Host renamed to {}".format(self._cluster_name))
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to rename cluster ({})".format(error))
 
     def _delete_hostgroup(self):
         """
@@ -287,7 +356,7 @@ class DellEmcPmaxCluster(object):
         """
         host_groups = self._conn.provisioning.get_hostgroup_list()
         if self._cluster_name not in host_groups:
-            self._module.fail_json(msg="{} does not exist".
+            self._module.exit_json(msg="{} does not exist".
                                    format(self._cluster_name))
 
         mvlist = self._conn.provisioning.\
@@ -297,11 +366,11 @@ class DellEmcPmaxCluster(object):
             self._conn.provisioning.\
                 delete_hostgroup(hostgroup_id=self._cluster_name)
             self._changed = True
-            self._message = "Cluster {} deleted".format(self._cluster_name)
+            self._message.append("Cluster {} deleted".format(self._cluster_name))
 
         else:
-            self._message = "{} host is part of a MaskingView".\
-                            format(self._cluster_name)
+            self._message.append("{} host is part of a MaskingView".
+                                 format(self._cluster_name))
 
         # Additional Check, if user deleted all hosts from hostgroup,
         # the hostgroup becomes a host, if this is the case delete should still
@@ -311,8 +380,8 @@ class DellEmcPmaxCluster(object):
 
             if hostdetails['num_of_initiators'] < 1:
                 self._conn.provisioning.delete_host(host_id=self._cluster_name)
-                self._message = "{} successfully deleted".\
-                                format(self._cluster_name)
+                self._message.append("{} successfully deleted".
+                                     format(self._cluster_name))
 
     def apply_module(self):
         """
@@ -320,7 +389,18 @@ class DellEmcPmaxCluster(object):
         :return: None
         """
         if self._module.params['state'] == 'present':
-            self._create_or_modify_hostgroup()
+            # If we want to rename cluster, this operation will done in first
+            # place and will be exclusive
+            if self._module.params['new_cluster_name']:
+                self._rename_hostgroup()
+
+            else:
+                self._create_hostgroup()
+                if self._host_state == 'in_cluster':
+                    self._add_host_into_hostgroup()
+
+                elif self._host_state == 'not_in_cluster':
+                    self._remove_host_from_hostgroup()
 
         elif self._module.params['state'] == 'absent':
             self._delete_hostgroup()
