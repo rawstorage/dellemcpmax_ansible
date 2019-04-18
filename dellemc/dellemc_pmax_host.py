@@ -143,6 +143,18 @@ EXAMPLES = '''
         consistent_lun: true
         state: present
         wwn_state: absent
+  - name: rename a host
+    dellemc_pmax_host:
+        unispherehost: "{{unispherehost}}"
+        universion: "{{universion}}"
+        verifycert: "{{verifycert}}"
+        user: "{{user}}"
+        password: "{{password}}"
+        array_id: "{{array_id}}"
+        host_id: "AnsibleHost1"
+        new_host_id: "NewAnsibleHost1"
+        host_type: default
+        state: present
   - name: Delete Host
     dellemc_pmax_host:
         unispherehost: "{{unispherehost}}"
@@ -205,6 +217,8 @@ RETURN = r'''
     "state": "info"
 }
 '''
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 BASE_FLAGS = {'volume_set_addressing': {'enabled': False, 'override': False},
               'disable_q_reset_on_ua': {'enabled': False, 'override': False},
@@ -252,19 +266,21 @@ class DellEmcHost(object):
         self._argument_spec.update(
             dict(
                 host_id=dict(type='str', required=True),
-                initiator_list=dict(type='list', required=True),
+                new_host_id=dict(type='str', required=False, default=None),
+                initiator_list=dict(type='list', required=False),
                 state=dict(type='str', required=True,
                            choices=['present', 'absent']),
-                wwn_state=dict(type='str', required=True,
+                wwn_state=dict(type='str', required=False,
                                choices=['present', 'absent']),
-                host_type=dict(type='str', required=False, default='default'),
+                host_type=dict(type='str', required=False, default
+                ='default' ),
                 consistent_lun=dict(type='bool', required=False, default=False)
-            )
-        )
+            ))
+
         self._module = AnsibleModule(argument_spec=self._argument_spec)
         self._conn = pmaxapi(self._module)
         self._changed = False  # Will gives the final status of execution
-        self._message = ''  # Contains the returned message to the user
+        self._message = []  # Contains the returned messages to the user
 
         self._host_id = self._module.params['host_id']
         self._initiators = self._module.params['initiator_list']
@@ -275,11 +291,35 @@ class DellEmcHost(object):
             self._host_flags['consistent_lun'] = self._module.params[
                 'consistent_lun']
         except KeyError:
-            self._module. \
-                fail_json(msg="{} is not a valid or supported host "
-                              "type".format(self._module.params['host_flags']))
+            self._module.fail_json(msg="{} is not a valid or supported host "
+                                       "type".format(
+                self._module.params['host_flags']))
 
-    def _create_or_modify_host(self):
+    def _add_initiators_in_host(self):
+        """
+        Adding initiators into an existing host
+        :return: None
+        """
+        try:
+            # Determine if we need to add WWN or not
+            host = self._conn.provisioning.get_host(host_id=self._host_id)
+            to_add = [w for w in self._initiators if
+                      w not in host['initiator']]
+            if to_add:
+                self._conn.provisioning.modify_host(host_id=self._host_id,
+                                                    add_init_list=to_add)
+                self._changed = True
+                self._message.append("Initiators {} added in {}".
+                                     format(", ".join(to_add), self._host_id))
+
+            else:
+                self._message.append("Host already in the requested state")
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to add initiators, check "
+                                       "the list and retry: {}".format(error))
+
+    def _create_host(self):
         """
         Will create or modify an existing host
         :return: (None)
@@ -291,8 +331,8 @@ class DellEmcHost(object):
                                                     initiator_list=self._initiators,
                                                     host_flags=self._host_flags)
 
-                self._message = "Host {} successfully " \
-                                "created".format(self._host_id)
+                self._message.append("Host {} successfully "
+                                     "created".format(self._host_id))
                 self._changed = True
 
             except Exception as error:
@@ -300,48 +340,54 @@ class DellEmcHost(object):
                                            "specified parameters, check "
                                            "hostname is unique and WWNs are "
                                            "not in use: {}".format(error))
+        else:
+            self._message.append("Host already exists")
 
-        # Second use-case, removing initiators from a host
-        elif self._module.params['wwn_state'] == 'absent':
-            try:
-                # Determine if we need to remove WWN or not
-                host = self._conn.provisioning.get_host(host_id=self._host_id)
-                to_del = [w for w in self._initiators if
-                          w in host['initiator']]
-                if to_del:
-                    self._conn.provisioning.modify_host(host_id=self._host_id,
-                                                        remove_init_list=self._initiators)
-                    self._changed = True
-                    self._message = "Host initiators {} removed from {}". \
-                        format(", ".join(to_del), self._host_id)
-                else:
-                    self._message = "Host already in the requested state"
+    def _remove_initiators_from_host(self):
+        """
+        Removing initiators from an existing host
+        :return: None
+        """
+        try:
+            # Determine if we need to remove WWN or not
+            host = self._conn.provisioning.get_host(host_id=self._host_id)
+            to_del = [w for w in self._initiators if w in host['initiator']]
+            if to_del:
+                self._conn.provisioning.modify_host(host_id=self._host_id,
+                                                    remove_init_list=to_del)
+                self._changed = True
+                self._message.append("Host initiators {} removed from {}".
+                                     format(", ".join(to_del), self._host_id))
+            else:
+                self._message.append("Host already in the requested state")
 
-            except Exception as error:
+        except Exception as error:
+            self._module.fail_json(msg="Unable to remove initiators, please "
+                                       "check the supplied list ({})".format(
+                error))
+
+    def _rename_host(self):
+        """
+        Renaming an existing host
+        :return: None
+        """
+        try:
+            if self._host_id not in self._conn.provisioning.get_host_list():
                 self._module.fail_json(
-                    msg="Unable to remove initiators, please "
-                        "check the supplied list ({})".format(error))
+                    msg="Host {} doesn't exists".format(self._host_id))
 
-        # Last use-case, adding an initiator
-        elif self._module.params['wwn_state'] == 'present':
-            try:
-                # Determine if we need to add WWN or not
-                host = self._conn.provisioning.get_host(host_id=self._host_id)
-                to_add = [w for w in self._initiators if
-                          w not in host['initiator']]
-                if to_add:
-                    self._conn.provisioning.modify_host(host_id=self._host_id,
-                                                        add_init_list=self._initiators)
-                    self._changed = True
-                    self._message = "Initiators {} added in {}". \
-                        format(", ".join(to_add), self._host_id)
+            self._conn.provisioning.modify_host(host_id=self._host_id,
+                                                new_name=self._module.params[
+                                                    'new_host_id'])
+            self._changed = True
+            # Updating host_id to be consistent with the next facts gathering
+            self._host_id = self._module.params['new_host_id']
+            self._message.append("Host renamed to {}".format(self._host_id))
 
-                else:
-                    self._message = "Host already in the requested state"
-
-            except Exception as error:
-                self._module.fail_json(msg="Unable to add initiators, check "
-                                           "the list and retry: {}".format(error))
+        except Exception as error:
+            self._module.fail_json(msg="Unable to rename host, please "
+                                       "check the supplied list ({})".format(
+                error))
 
     def _delete_host(self):
         """
@@ -356,13 +402,14 @@ class DellEmcHost(object):
             if len(mvlist) < 1:
                 self._conn.provisioning.delete_host(host_id=self._host_id)
                 self._changed = True
-                self._message = "Host {} deleted".format(self._host_id)
+                self._message.append("Host {} deleted".format(self._host_id))
 
             else:
-                self._message = "{} host is part of a Masking " \
-                                "view".format(self._host_id)
+                self._message.append("{} host is part of a Masking view".
+                                     format(self._host_id))
         else:
-            self._message = "Specified Host does not exist"
+            self._module.fail_json(
+                msg="Specified Host {} does not exist".format(self._host_id))
 
     def apply_module(self):
         """
@@ -373,17 +420,27 @@ class DellEmcHost(object):
 
         # User has requested to create or modify an host
         if self._module.params['state'] == 'present':
-            self._create_or_modify_host()
+            # If we want to rename host, this operation will done in first
+            # place and will be exclusive (because it's not make sense to
+            # rename AND add or removes initiators)
+            if self._module.params['new_host_id']:
+                self._rename_host()
+
+            else:
+                self._create_host()
+                if self._module.params['wwn_state'] == 'absent':
+                    self._remove_initiators_from_host()
+                elif self._module.params['wwn_state'] == 'present':
+                    self._add_initiators_in_host()
+
             h_details = self._conn.provisioning.get_host(host_id=self._host_id)
-            result = {'state': 'info',
-                      'changed': self._changed,
+            result = {'state': 'info', 'changed': self._changed,
                       'host_detail': h_details}
 
         # User has requested to delete an host
         elif self._module.params['state'] == 'absent':
             self._delete_host()
-            result = {'state': 'info',
-                      'changed': self._changed}
+            result = {'state': 'info', 'changed': self._changed}
 
         facts = ({'message': self._message})
         self._module.exit_json(ansible_facts={'host_detail': facts}, **result)

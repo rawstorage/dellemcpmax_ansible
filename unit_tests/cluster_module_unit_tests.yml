@@ -94,10 +94,21 @@
 
   - debug: var=output
 
-  - name: Deleting an Host Group
+  - name: Rename Cluster
+    dellemc_pmax_cluster:
+      <<: *uni_connection_vars
+      cluster_name: "AnsibleCluster"
+      new_cluster_name: "NewCluster"
+      host_list:
+        - AnsibleChild1
+        - AnsibleChild2
+      state: present
+      host_state: in_cluster
+
+  - name: Deleting a HostGroup
     dellemc_pmax_cluster:
         <<: *uni_connection_vars
-        cluster_name: "AnsibleCluster"
+        cluster_name: "NewCluster"
         host_list:
         - AnsibleChild1
         - AnsibleChild2
@@ -150,7 +161,7 @@
 
   - debug: var=output
 
-  - name: Deleting an Host Group
+  - name: Deleting a HostGroup
     dellemc_pmax_cluster:
         <<: *uni_connection_vars
         cluster_name: "AnsibleCluster"
