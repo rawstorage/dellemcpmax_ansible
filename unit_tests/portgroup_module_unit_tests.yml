@@ -89,3 +89,11 @@
       state: absent
       port_state: out_of_pg
   - debug: var=portgroup_detail
+
+  - name: "(Idempotency check) Delete portgroup {{ new_pgname }}"
+    dellemc_pmax_portgroup:
+      <<: *uni_connection_vars
+      portgroup_id: "{{ new_pgname }}"
+      state: absent
+      port_state: out_of_pg
+  - debug: var=portgroup_detail

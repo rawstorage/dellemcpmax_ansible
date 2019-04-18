@@ -6,8 +6,6 @@
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 __metaclass__ = type
 
@@ -237,6 +235,9 @@ ok: [localhost] => {
     "state": "info"
 }
 '''
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
+import re
 
 
 class DellEmcPortGroup(object):
@@ -389,12 +390,24 @@ class DellEmcPortGroup(object):
         # PortId was being returned in the
         # format FA11D:6 instead of just the 6
         actual_ports_in_pg = []
-        for i in dict_ports_in_pg:
-            try:
-                split = i['portId'].split(':')
-                i['portId'] = split[1]
-            except IndexError:
-                actual_ports_in_pg.append(i)
+        pattern_normal = re.compile("^FA-\d{1,2}D:\d{1,2}")  # Ex: FA-2D:4
+        pattern_reverse = re.compile("^\d{1,2}:FA-\d{1,2}D")  # Ex: 4:FA-2D
+
+        for port in dict_ports_in_pg:
+            # If the portId is like FA-2D:4
+            if re.match(pattern_normal, port['portId']):
+                actual_ports_in_pg.append(port['portId'])
+
+            # If the portId is like 4:FA-2D
+            if re.match(pattern_reverse, port['portId']):
+                dirport, director = port['portId'].split(':')
+                actual_ports_in_pg.append(":".join([director, dirport]))
+
+            # If not pattern is matching it's a problem !
+            if not re.match(pattern_normal, port['portId']) \
+                    and not re.match(pattern_reverse, port['portId']):
+                self._module.fail_json(msg="Cannot parsing FA port {} while updating PG".
+                                           format(port['portId']))
 
         if self._module.params['port_state'] == 'in_pg':
             self._add_new_ports(actual_ports_in_pg)
