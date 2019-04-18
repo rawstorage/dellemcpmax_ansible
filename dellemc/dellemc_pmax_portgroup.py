@@ -459,7 +459,7 @@ class DellEmcPortGroup(object):
         except ResourceNotFoundException:
             pg_details = "Port group {} does not exist".format(self._portgroup_id)
 
-        if not self._message:
+        if not self.changed:
             self._message.append("No Changes made. Already in that state.")
 
         facts = ({'message': self._message, 'portgroup_details': pg_details})
