@@ -5,8 +5,6 @@
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
 from __future__ import absolute_import, division, print_function
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 __metaclass__ = type
 
@@ -124,6 +122,8 @@ ok: [localhost] => {
     }
 }
 '''
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
 
 class DellEmcPmaxMaskingview(object):
@@ -178,11 +178,15 @@ class DellEmcPmaxMaskingview(object):
         :return: (None)
         """
         try:
-            self._conn.provisioning.\
-                delete_masking_view(maskingview_name=self._maskingview_name)
-            self._changed = True
-            self._message = "Masking view {} successfully deleted".\
-                            format(self._maskingview_name)
+            if self._maskingview_name in self._conn.provisioning.get_masking_view_list():
+                self._conn.provisioning.\
+                    delete_masking_view(maskingview_name=self._maskingview_name)
+                self._changed = True
+                self._message = "Masking view {} successfully deleted".\
+                                format(self._maskingview_name)
+            else:
+                self._message = "No MaskingView with the name {} " \
+                                "exists".format(self._maskingview_name)
 
         except Exception as error:
             self._module.fail_json(msg="Unable to Delete the specified Masking"
