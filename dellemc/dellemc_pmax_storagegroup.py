@@ -29,13 +29,11 @@ manipulate number of volumes given in volume requests list. volume
 removal is handled in dellemc_pmax_volume module, to build a requests list 
 for an existing storage group you can run with an empty requests list and 
 examine the return"
-
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
   and PowerMAX. Every effort has been made to verify the scripts run with 
   valid input. These modules are a tech preview."
-
 module: dellemc_pmax_storagegroup
 options:
   array_id:
@@ -98,7 +96,6 @@ options:
       delete"
     type: string
     required: true
-
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -137,7 +134,6 @@ EXAMPLES = '''
       - num_vols: 1
         cap_gb: 3
         vol_name: "FRA"
-
   tasks:
   - name: "Create New Storage Group volumes"
     dellemc_pmax_storagegroup:
@@ -201,7 +197,6 @@ EXAMPLES = '''
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: absent
-
 '''
 RETURN = r'''
 ok: [localhost] => {
@@ -296,7 +291,7 @@ class DellEmcStorageGroup(object):
             state=dict(type='str',
                        choices=['present', 'absent'],
                        required=True),
-            compression=dict(type='bool', required=False)
+            no_compression=dict(type='bool', required=False)
         ))
 
         self._module = AnsibleModule(argument_spec=self._argument_spec)
@@ -504,7 +499,7 @@ class DellEmcStorageGroup(object):
                 for in_sg in current_config:
                     # Loop until finding group of TDEVs with the same size as
                     # requested
-                    if in_sg['cap_gb'] != int(group['cap_gb']):
+                    if in_sg['cap_gb'] != group['cap_gb']:
                         continue
 
                     if in_sg['num_vols'] > group['num_vols']:
@@ -516,7 +511,7 @@ class DellEmcStorageGroup(object):
                                      self._sg_name,
                                      group['num_vols'],
                                      ", ".join(self._message))
-                        self._module.fail_json(msg=msg)
+                        self._module.exit_json(msg=msg)
 
                     # Computing the exact number of LUNs to create (difference
                     # between the request and existing)
@@ -533,6 +528,9 @@ class DellEmcStorageGroup(object):
                     self._message.append("{} volume(s) of {} GB added".
                                          format(lun_to_create, group['cap_gb']))
                     self._changed = True
+                else:
+                    self._message.append("No new volume of {} GB to add in {}".
+                                         format(group['cap_gb'], self._sg_name))
 
     def _rename_sg(self):
         """
