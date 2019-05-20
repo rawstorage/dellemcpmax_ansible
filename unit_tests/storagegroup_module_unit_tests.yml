@@ -203,7 +203,6 @@
   - name: "Delete Storage Group"
     dellemc_pmax_storagegroup:
       <<: *uni_connection_vars
-      sgname: "Ansible_UnitTest_SG"
+      sgname: "Ansible_UnitTest_SG_Renamed"
       slo: "Diamond"
-      luns: "Ansible_UnitTest_SG_Renamed"
       state: absent
