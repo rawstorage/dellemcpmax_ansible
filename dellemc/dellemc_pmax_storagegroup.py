@@ -499,7 +499,7 @@ class DellEmcStorageGroup(object):
                 for in_sg in current_config:
                     # Loop until finding group of TDEVs with the same size as
                     # requested
-                    if in_sg['cap_gb'] != group['cap_gb']:
+                    if int(in_sg['cap_gb']) != int(group['cap_gb']):
                         continue
 
                     if in_sg['num_vols'] > group['num_vols']:
