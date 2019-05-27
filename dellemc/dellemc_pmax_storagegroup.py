@@ -318,7 +318,7 @@ class DellEmcStorageGroup(object):
         mapping = {}  # Will contains cap size as key (details as values)
         for g in self._module.params['luns']:
             # ignore input if num_vols or cap_gb is equal to zero
-            if int(g['num_vols']) == 0 or int(g['cap_gb']) == 0:
+            if int(g['num_vols']) <= 0 or int(g['cap_gb']) <= 0:
                 continue
             # If this size of LUN has never seen before, we save it
             if g['cap_gb'] not in mapping:
