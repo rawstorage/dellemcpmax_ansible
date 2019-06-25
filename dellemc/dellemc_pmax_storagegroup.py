@@ -321,17 +321,17 @@ class DellEmcStorageGroup(object):
             if int(g['num_vols']) <= 0 or int(g['cap_gb']) <= 0:
                 continue
             # If this size of LUN has never seen before, we save it
-            if g['cap_gb'] not in mapping:
-                mapping[g['cap_gb']] = {'number': int(g['num_vols']),
+            if int(g['cap_gb']) not in mapping:
+                mapping[int(g['cap_gb'])] = {'number': int(g['num_vols']),
                                         'name': g.get('vol_name', None)}
 
             # If this LUN size already seen
             # We have to add the number of LUNs to get the total number of
             # LUNs of that given size
             else:
-                mapping[g['cap_gb']]['number'] += int(g['num_vols'])
+                mapping[int(g['cap_gb'])]['number'] += int(g['num_vols'])
                 if 'vol_name' in g:
-                    mapping[g['cap_gb']]['name'] = g['vol_name']
+                    mapping[int(g['cap_gb'])]['name'] = g['vol_name']
 
         # Dumping the final data structure into the target variable
         for lun_size in mapping:
@@ -381,6 +381,40 @@ class DellEmcStorageGroup(object):
 
         return current_config
 
+    def _change_compression(self):
+        """
+        Change compression on existing Storage Group if needed
+        :return: None
+        """
+        # In case of compressed SG requested, we put the compression flag
+        # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
+        try:
+            if self._module.params['compression'] is not None:
+                sg_detail = self._conn.provisioning.get_storage_group(storage_group_name=self._sg_name)
+                if sg_detail['compression'] != self._module.params['compression']:
+                    payload = {
+                        "editStorageGroupActionParam": {
+                            "editCompressionParam": {
+                                "compression": self._module.params['compression']
+                            }
+                        }
+                    }
+
+                    self._conn.provisioning. \
+                        modify_storage_group(storagegroup=self._sg_name,
+                                             payload=payload)
+                    self._changed = True
+                    self._message.append("Set compression at {} on {}".
+                                         format(self._module.params['compression'],
+                                                self._sg_name))
+                else:
+                    self._message.append("Compression on SG {} already set at {}".
+                                         format(self._sg_name,
+                                                self._module.params['compression']))
+        except Exception as error:
+            self._module.fail_json(msg="Unable to modify compression for {} ({})".
+                                   format(self._sg_name, error))
+
     def _change_service_level(self):
         """
         Change Service Level on existing Storage Group
@@ -419,22 +453,10 @@ class DellEmcStorageGroup(object):
         :return: None
         """
         if self._sg_name not in self._conn.provisioning.get_storage_group_list():
-            # In case of compressed SG requested, we put the compression flag
-            # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
-
             srp = "None" if self._module.params['slo'] == "None" else "SRP_1"
-            if 'compression' in self._module.params:
-                _compression = False if self._module.params['compression'] else True
-                self._conn.provisioning.\
-                    create_storage_group(srp_id=srp,
-                                         sg_id=self._sg_name,
-                                         slo=self._module.params['slo'],
-                                         do_disable_compression=_compression)
-            else:
-                self._conn.provisioning.\
-                    create_storage_group(srp_id=srp,
-                                         sg_id=self._sg_name,
-                                         slo=self._module.params['slo'])
+            self._conn.provisioning.create_storage_group(srp_id=srp,
+                                                         sg_id=self._sg_name,
+                                                         slo=self._module.params['slo'])
 
             self._changed = True
             self._message.append("Empty Storage Group {} Created".format(self._sg_name))
@@ -588,6 +610,7 @@ class DellEmcStorageGroup(object):
 
             else:
                 self._create_sg()
+                self._change_compression()
                 self._change_service_level()
                 if self._lun_request:
                     self._modify_sg()
