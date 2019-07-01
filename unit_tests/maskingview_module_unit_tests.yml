@@ -33,8 +33,8 @@
       <<: *uni_connection_vars
       portgroup_id: "AnsiblePG1"
       array_ports:
-        - "FA-1D:6"
-        - "FA-2D:6"
+        - "FA-1D:4"
+        - "FA-2D:4"
       state: present
       port_state: in_pg
 
@@ -48,7 +48,7 @@
           cap_gb: 4
           vol_name: "UnittestPlaybookMV"
       state: present
-      no_compression: true
+      compression: true
 
   - name: Create Masking View
     dellemc_pmax_maskingview:
@@ -92,6 +92,16 @@
       state: absent
   - debug: var=maskingview_detail
 
+  - name: (Trying idempotency) Deleting Masking View again
+    dellemc_pmax_maskingview:
+      <<: *uni_connection_vars
+      sgname: "AnsibleSG1"
+      portgroup_id: "AnsiblePG1"
+      host_or_cluster : "AnsibleHost1"
+      maskingview_name: "NewAnsible_MV"
+      state: absent
+  - debug: var=maskingview_detail
+
   - name: Deleting host
     dellemc_pmax_host:
         <<: *uni_connection_vars
@@ -109,8 +119,8 @@
       <<: *uni_connection_vars
       portgroup_id: "AnsiblePG1"
       array_ports:
-      - "FA-1D:6"
-      - "FA-2D:6"
+      - "FA-1D:4"
+      - "FA-2D:4"
       state: absent
       port_state: in_pg
 
@@ -124,4 +134,4 @@
         cap_gb: 4
         vol_name: "Unittest Playbook MV"
       state: absent
-      no_compression: true
+      compression: true
