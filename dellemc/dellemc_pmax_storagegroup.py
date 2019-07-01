@@ -29,11 +29,13 @@ manipulate number of volumes given in volume requests list. volume
 removal is handled in dellemc_pmax_volume module, to build a requests list 
 for an existing storage group you can run with an empty requests list and 
 examine the return"
+
 version_added: "2.8"
 description:
   - "This module has been tested against UNI 9.0 with VMAX3, VMAX All Flash 
   and PowerMAX. Every effort has been made to verify the scripts run with 
   valid input. These modules are a tech preview."
+
 module: dellemc_pmax_storagegroup
 options:
   array_id:
@@ -96,6 +98,7 @@ options:
       delete"
     type: string
     required: true
+
 requirements:
   - Ansible
   - "Unisphere for PowerMax version 9.0 or higher."
@@ -134,6 +137,7 @@ EXAMPLES = '''
       - num_vols: 1
         cap_gb: 3
         vol_name: "FRA"
+
   tasks:
   - name: "Create New Storage Group volumes"
     dellemc_pmax_storagegroup:
@@ -197,6 +201,7 @@ EXAMPLES = '''
       slo: "Diamond"
       luns: "{{ lun_request }}"
       state: absent
+
 '''
 RETURN = r'''
 ok: [localhost] => {
@@ -291,7 +296,7 @@ class DellEmcStorageGroup(object):
             state=dict(type='str',
                        choices=['present', 'absent'],
                        required=True),
-            no_compression=dict(type='bool', required=False)
+            compression=dict(type='bool', required=False)
         ))
 
         self._module = AnsibleModule(argument_spec=self._argument_spec)
@@ -312,18 +317,21 @@ class DellEmcStorageGroup(object):
         """
         mapping = {}  # Will contains cap size as key (details as values)
         for g in self._module.params['luns']:
+            # ignore input if num_vols or cap_gb is equal to zero
+            if int(g['num_vols']) <= 0 or int(g['cap_gb']) <= 0:
+                continue
             # If this size of LUN has never seen before, we save it
-            if g['cap_gb'] not in mapping:
-                mapping[g['cap_gb']] = {'number': int(g['num_vols']),
+            if int(g['cap_gb']) not in mapping:
+                mapping[int(g['cap_gb'])] = {'number': int(g['num_vols']),
                                         'name': g.get('vol_name', None)}
 
             # If this LUN size already seen
             # We have to add the number of LUNs to get the total number of
             # LUNs of that given size
             else:
-                mapping[g['cap_gb']]['number'] += int(g['num_vols'])
+                mapping[int(g['cap_gb'])]['number'] += int(g['num_vols'])
                 if 'vol_name' in g:
-                    mapping[g['cap_gb']]['name'] = g['vol_name']
+                    mapping[int(g['cap_gb'])]['name'] = g['vol_name']
 
         # Dumping the final data structure into the target variable
         for lun_size in mapping:
@@ -373,6 +381,40 @@ class DellEmcStorageGroup(object):
 
         return current_config
 
+    def _change_compression(self):
+        """
+        Change compression on existing Storage Group if needed
+        :return: None
+        """
+        # In case of compressed SG requested, we put the compression flag
+        # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
+        try:
+            if self._module.params['compression'] is not None:
+                sg_detail = self._conn.provisioning.get_storage_group(storage_group_name=self._sg_name)
+                if sg_detail['compression'] != self._module.params['compression']:
+                    payload = {
+                        "editStorageGroupActionParam": {
+                            "editCompressionParam": {
+                                "compression": self._module.params['compression']
+                            }
+                        }
+                    }
+
+                    self._conn.provisioning. \
+                        modify_storage_group(storagegroup=self._sg_name,
+                                             payload=payload)
+                    self._changed = True
+                    self._message.append("Set compression at {} on {}".
+                                         format(self._module.params['compression'],
+                                                self._sg_name))
+                else:
+                    self._message.append("Compression on SG {} already set at {}".
+                                         format(self._sg_name,
+                                                self._module.params['compression']))
+        except Exception as error:
+            self._module.fail_json(msg="Unable to modify compression for {} ({})".
+                                   format(self._sg_name, error))
+
     def _change_service_level(self):
         """
         Change Service Level on existing Storage Group
@@ -411,22 +453,10 @@ class DellEmcStorageGroup(object):
         :return: None
         """
         if self._sg_name not in self._conn.provisioning.get_storage_group_list():
-            # In case of compressed SG requested, we put the compression flag
-            # at ON. Warning: slo must be present for that option can works (cf. PyU4V)
-
             srp = "None" if self._module.params['slo'] == "None" else "SRP_1"
-            if 'compression' in self._module.params:
-                _compression = False if self._module.params['compression'] else True
-                self._conn.provisioning.\
-                    create_storage_group(srp_id=srp,
-                                         sg_id=self._sg_name,
-                                         slo=self._module.params['slo'],
-                                         do_disable_compression=_compression)
-            else:
-                self._conn.provisioning.\
-                    create_storage_group(srp_id=srp,
-                                         sg_id=self._sg_name,
-                                         slo=self._module.params['slo'])
+            self._conn.provisioning.create_storage_group(srp_id=srp,
+                                                         sg_id=self._sg_name,
+                                                         slo=self._module.params['slo'])
 
             self._changed = True
             self._message.append("Empty Storage Group {} Created".format(self._sg_name))
@@ -499,7 +529,7 @@ class DellEmcStorageGroup(object):
                 for in_sg in current_config:
                     # Loop until finding group of TDEVs with the same size as
                     # requested
-                    if int(in_sg['cap_gb']) != int(group['cap_gb']):
+                    if in_sg['cap_gb'] != int(group['cap_gb']):
                         continue
 
                     if in_sg['num_vols'] > group['num_vols']:
@@ -511,7 +541,7 @@ class DellEmcStorageGroup(object):
                                      self._sg_name,
                                      group['num_vols'],
                                      ", ".join(self._message))
-                        self._module.exit_json(msg=msg)
+                        self._module.fail_json(msg=msg)
 
                     # Computing the exact number of LUNs to create (difference
                     # between the request and existing)
@@ -528,9 +558,6 @@ class DellEmcStorageGroup(object):
                     self._message.append("{} volume(s) of {} GB added".
                                          format(lun_to_create, group['cap_gb']))
                     self._changed = True
-                else:
-                    self._message.append("No new volume of {} GB to add in {}".
-                                         format(group['cap_gb'], self._sg_name))
 
     def _rename_sg(self):
         """
@@ -583,6 +610,7 @@ class DellEmcStorageGroup(object):
 
             else:
                 self._create_sg()
+                self._change_compression()
                 self._change_service_level()
                 if self._lun_request:
                     self._modify_sg()
