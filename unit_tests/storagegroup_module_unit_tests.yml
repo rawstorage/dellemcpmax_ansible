@@ -5,7 +5,7 @@
   gather_facts: no
 
   vars_files:
-    - vars.yml
+  - vars.yml
 
   vars:
     input: &uni_connection_vars
@@ -122,3 +122,12 @@
         slo: "Diamond"
         state: "absent"
     - debug: var=storagegroup_detail
+
+    - name: "(Idempotency) Deleting Storage Group only volumes will be not deleted"
+      dellemc_pmax_storagegroup:
+        <<: *uni_connection_vars
+        sgname: "{{ new_sg_name }}"
+        slo: "Diamond"
+        state: "absent"
+    - debug: var=storagegroup_detail
+

@@ -61,6 +61,9 @@ options:
   compression:
     description:
       - "Set the compression on the Storage Group to create"
+  preallocate:
+    description:
+      - "Create a fully preallocated volume. Only for creation of a storage group. Exclusive with compression."
   unispherehost:
     description:
       - "Fully Qualified Domain Name or IP address of Unisphere for PowerMax
@@ -296,7 +299,8 @@ class DellEmcStorageGroup(object):
             state=dict(type='str',
                        choices=['present', 'absent'],
                        required=True),
-            compression=dict(type='bool', required=False)
+            compression=dict(type='bool', required=False),
+            preallocate=dict(type='bool', required=False)
         ))
 
         self._module = AnsibleModule(argument_spec=self._argument_spec)
@@ -452,14 +456,40 @@ class DellEmcStorageGroup(object):
         Create SG if needed and exit module gracefully with changes
         :return: None
         """
+
         if self._sg_name not in self._conn.provisioning.get_storage_group_list():
             srp = "None" if self._module.params['slo'] == "None" else "SRP_1"
-            self._conn.provisioning.create_storage_group(srp_id=srp,
-                                                         sg_id=self._sg_name,
-                                                         slo=self._module.params['slo'])
+            if self._module.params['preallocate'] is not None \
+                    and self._module.params['preallocate']:
+                if self._lun_request:
+                    num_vols = self._lun_request[0]["num_vols"]
+                    vol_name = self._lun_request[0]["vol_name"]
+                    vol_size = self._lun_request[0]["cap_gb"]
+                else:
+                    num_vols = 0
+                    vol_name = None
+                    vol_size = 0
 
+                self._conn.provisioning.create_storage_group(srp_id=srp,
+                                                         sg_id=self._sg_name,
+                                                         slo=self._module.params['slo'],
+                                                         num_vols=num_vols, vol_size=vol_size,
+                                                         cap_unit="GB",
+                                                         vol_name=vol_name,
+                                                         allocate_full=True)
+
+                self._message.append("Storage Group {} Created".format(self._sg_name))
+                self._message.append("With {} volume(s) of {} Gb preallocated"
+                                     .format(num_vols, vol_size))
+
+            else:
+                self._conn.provisioning.create_storage_group(srp_id=srp,
+                                                         sg_id=self._sg_name,
+                                                         slo=self._module.params['slo'],
+                                                         )
+                self._message.append("Empty Storage Group {} Created".format(self._sg_name))
             self._changed = True
-            self._message.append("Empty Storage Group {} Created".format(self._sg_name))
+
         else:
             self._message.append("SG {} already exists".format(self._sg_name))
 
@@ -469,20 +499,21 @@ class DellEmcStorageGroup(object):
         :return: None
         """
         # SG must exists before go ahead (obviously...)
-        if self._sg_name not in self._conn.provisioning.get_storage_group_list():
-            self._module.fail_json(msg="SG {} doesn't exists".format(self._sg_name))
+        if self._sg_name in self._conn.provisioning.get_storage_group_list():
+            masking_view = self._conn.provisioning.\
+                get_masking_views_from_storage_group(storagegroup=self._sg_name)
 
-        masking_view = self._conn.provisioning.\
-            get_masking_views_from_storage_group(storagegroup=self._sg_name)
+            if masking_view:
+                self._message.append("Storage Group {} is Part of a Masking View".
+                                     format(self._sg_name))
+                self._module.fail_json(msg=self._message)
 
-        if masking_view:
-            self._message.append("Storage Group {} is Part of a Masking View".
-                                 format(self._sg_name))
-            self._module.fail_json(msg=self._message)
+            self._conn.provisioning.delete_storagegroup(storagegroup_id=self._sg_name)
+            self._changed = True
+            self._message.append("SG {} has been deleted".format(self._sg_name))
 
-        self._conn.provisioning.delete_storagegroup(storagegroup_id=self._sg_name)
-        self._changed = True
-        self._message.append("SG {} has been deleted".format(self._sg_name))
+        else:
+            self._message.append("SG {} doesn't exists".format(self._sg_name))
 
     def _modify_sg(self):
         """
@@ -609,6 +640,9 @@ class DellEmcStorageGroup(object):
                 self._rename_sg()
 
             else:
+
+                if self._module.params.get('compression') and self._module.params.get('preallocate'):
+                    self._module.fail_json(msg="compression and preallocation are mutually exclusive")
                 self._create_sg()
                 self._change_compression()
                 self._change_service_level()

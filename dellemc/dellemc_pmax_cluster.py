@@ -8,9 +8,6 @@
 from __future__ import absolute_import, division, print_function
 from functools import partial
 
-from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
-
 __metaclass__ = type
 
 ANSIBLE_METADATA = {
@@ -150,6 +147,7 @@ EXAMPLES = '''
         - AnsibleHost2
         state: absent
         host_state: in_cluster
+
 '''
 RETURN = r'''
     "ansible_facts": {
@@ -158,6 +156,9 @@ RETURN = r'''
         }
     },
 '''
+from ansible.module_utils.basic import AnsibleModule
+from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
+
 
 BASE_FLAGS = {'volume_set_addressing': {'enabled': False, 'override': False},
               'disable_q_reset_on_ua': {'enabled': False, 'override': False},
@@ -336,8 +337,7 @@ class DellEmcPmaxCluster(object):
         """
         try:
             if self._cluster_name not in self._conn.provisioning.get_hostgroup_list():
-                self._module.fail_json(msg="Cluster {} doesn't exists".format(
-                    self._cluster_name))
+                self._module.fail_json(msg="Cluster {} doesn't exists".format(self._cluster_name))
 
             self._conn.provisioning.modify_hostgroup(hostgroup_id=self._cluster_name,
                                                      new_name=self._module.params['new_cluster_name'])
@@ -354,22 +354,22 @@ class DellEmcPmaxCluster(object):
         Deleting an host-group
         :return: (None)
         """
-        host_groups = self._conn.provisioning.get_hostgroup_list()
-        if self._cluster_name not in host_groups:
-            self._module.exit_json(msg="{} does not exist".
-                                   format(self._cluster_name))
+        if self._cluster_name in self._conn.provisioning.get_hostgroup_list():
+            mvlist = self._conn.provisioning.\
+                get_masking_views_by_host(initiatorgroup_name=self._cluster_name)
 
-        mvlist = self._conn.provisioning.\
-            get_masking_views_by_host(initiatorgroup_name=self._cluster_name)
+            if len(mvlist) < 1:
+                self._conn.provisioning.\
+                    delete_hostgroup(hostgroup_id=self._cluster_name)
+                self._changed = True
+                self._message.append("Cluster {} deleted".format(self._cluster_name))
 
-        if len(mvlist) < 1:
-            self._conn.provisioning.\
-                delete_hostgroup(hostgroup_id=self._cluster_name)
-            self._changed = True
-            self._message.append("Cluster {} deleted".format(self._cluster_name))
+            else:
+                self._message.append("{} host is part of a MaskingView".
+                                     format(self._cluster_name))
 
         else:
-            self._message.append("{} host is part of a MaskingView".
+            self._message.append("Cluster {} doesn't exists".
                                  format(self._cluster_name))
 
         # Additional Check, if user deleted all hosts from hostgroup,
