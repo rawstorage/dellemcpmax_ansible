@@ -1,4 +1,13 @@
 # dellemcpmax_ansible
+
+Update July 17th 2019 - Official modules from Dell EMC are not provided.  functionality will differ slighly from the open source modules so you will need to review the differences if you plan to siwtch over.
+
+Official modules are available here
+
+https://github.com/dell/ansible-powermax/tree/master/dellemc_ansible
+
+The OpenSource Project will continue in the background but expectation is that the official modules will become part of Core at some stage and these ones will not be required.
+
 Library of Modules and Sample Runbooks for Dell EMC PowerMax &amp; VMAX customers to integrate with Ansible
 
 Support Information
