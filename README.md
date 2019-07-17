@@ -6,7 +6,7 @@ Official modules are available here
 
 https://github.com/dell/ansible-powermax/tree/master/dellemc_ansible
 
-The OpenSource Project will continue in the background but expectation is that the official modules will become part of Core at some stage and these ones will not be required.
+The OpenSource Project will continue in the background but expectation is that the official modules will become part of Core at some stage and these ones will not be required although customers are free to develop on this code base for their own use.  The API calls will be supported in the usual way.
 
 Library of Modules and Sample Runbooks for Dell EMC PowerMax &amp; VMAX customers to integrate with Ansible
 
