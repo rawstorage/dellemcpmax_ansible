@@ -1,6 +1,6 @@
 # dellemcpmax_ansible
 
-Update July 17th 2019 - Official modules from Dell EMC are not provided.  functionality will differ slighly from the open source modules so you will need to review the differences if you plan to siwtch over.
+Update July 17th 2019 - Official modules from Dell EMC are now provided with full support.  Functionality will differ slighly from the open source modules so you will need to review the differences if you plan to siwtch over.
 
 Official modules are available here
 
