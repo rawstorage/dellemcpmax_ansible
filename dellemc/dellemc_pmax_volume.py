@@ -212,7 +212,7 @@ ok: [localhost] => {
     }
 }
 '''
-
+import time
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.dellemc import dellemc_pmax_argument_spec, pmaxapi
 
@@ -332,6 +332,77 @@ class DellEmcVolume(object):
                                        .format(volume["device_id"], error))
         self._facts = ({'message': self._message})
 
+    def _delete_rdf_pairs(self, rdf_id: int, volumes: list, sg_prefix: str=None):
+        """
+        Delete RDF replication sessions for a list of volumes
+        :param rdf_id: (int) RDF ID
+        :param volumes: (list) list of volumes (HVE ID)
+        :param sg_prefix: (str) A prefix for the temporary SG name
+        :return: (none)
+        """
+        sg_name = "{}_{}".format(sg_prefix, rdf_id)
+        try:
+            # We need to know which kind of RDF replication we have. So, we
+            # GET this information by querying the first device of the list
+            # since all RDF pairs in a RDF group have the same replication
+            # mode.
+            v_details = self._conn.replication. \
+                get_rdf_group_volume(rdf_number=rdf_id,
+                                     device_id=volumes[0])
+
+            # If replication mode is async, we have to set a consistency exempt
+            # flag. Without that flag, suspend operation is not possible.
+            suspend_options = {'consExempt': True} if v_details['rdfMode'] == 'Asynchronous' else None
+
+            self._conn.provisioning. \
+                create_storage_group(srp_id='SRP_1',
+                                     sg_id=sg_name,
+                                     slo='Diamond')
+
+            self._conn.provisioning. \
+                add_existing_vol_to_sg(sg_id=sg_name,
+                                       vol_ids=volumes)
+
+            # For SYNC/ASYNC replication it's needed to suspend replication
+            # before delete pairs. It's not needed for metro session.
+            if v_details['rdfMode'] in ('Synchronous', 'Asynchronous', 'Adaptive Copy'):
+                try:
+                    self._conn.replication. \
+                        suspend_storagegroup_srdf(storagegroup_id=sg_name,
+                                                  rdfg_no=rdf_id,
+                                                  suspend_options=suspend_options)
+                # For idempotency reasons we check if the pair is already
+                # suspended
+                except Exception as error:
+                    if 'already in the requested RDF state' in str(error):
+                        pass
+
+            try:
+                self._conn.replication. \
+                    delete_storagegroup_srdf(storagegroup_id=sg_name,
+                                             rdfg_num=rdf_id)
+
+            # With async sessions deletion can fail with this error message:
+            # "The action cannot be performed because the specified dev has
+            # pending tracks which need to be cleared"
+            # In that case, relaunch the SAME command (with a little sleep
+            # time) do the job. This probel doesn't in SYNC/Metro mode.
+            except Exception as error:
+                if 'pending tracks which need to be cleared' in str(error):
+                    time.sleep(60)  # Not clean but required...
+                    self._conn.replication. \
+                        delete_storagegroup_srdf(storagegroup_id=sg_name,
+                                                 rdfg_num=rdf_id)
+                else:
+                    raise
+
+        except Exception as error:
+            self._module.fail_json(msg="Unable to destroy RDF pairs for "
+                                       "devices {} ({})"
+                                   .format(", ".join(volumes), error))
+        finally:
+            self._conn.provisioning.delete_storagegroup(storagegroup_id=sg_name)
+
     def _freeing_volumes(self):
         """
         Erasing data from TDEVs (TDEVs must be out of SGs)
@@ -375,25 +446,10 @@ class DellEmcVolume(object):
                                            v_details['remoteVolumeName'],
                                            v_details['remoteSymmetrixId']))
 
-            for rdf_id in rdf_mapping:
-                sg_name = "{}_{}".format(sg_prefix, rdf_id)
-                try:
-                    self._conn.provisioning. \
-                        create_storage_group(srp_id='SRP_1',
-                                             sg_id=sg_name,
-                                             slo='Diamond')
-                    self._conn.provisioning. \
-                        add_existing_vol_to_sg(sg_id=sg_name,
-                                               vol_ids=rdf_mapping[rdf_id])
-                    self._conn.replication. \
-                        delete_storagegroup_srdf(storagegroup_id=sg_name,
-                                                 rdfg_num=rdf_id)
-                except Exception as error:
-                    self._module.fail_json(msg="Unable to destroy RDF pairs for "
-                                               "devices {} ({})"
-                                           .format(", ".join(rdf_mapping[rdf_id]), error))
-                finally:
-                    self._conn.provisioning.delete_storagegroup(storagegroup_id=sg_name)
+            for rdf_id, volumes in rdf_mapping.items():
+                self._delete_rdf_pairs(rdf_id=rdf_id,
+                                       volumes=volumes,
+                                       sg_prefix=sg_prefix)
 
                 self._changed = True
                 self._message += _message
