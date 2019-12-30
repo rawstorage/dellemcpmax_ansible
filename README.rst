@@ -18,22 +18,16 @@ Library of Modules and Sample Runbooks for Dell EMC PowerMax &amp; VMAX customer
 
 Support Information
 
-While every effort has been made to ensure that these modules are working as
- intended, there is no formal support.  These modules are intended to
- provide examples and users should test thoroughly before using in their
- environments.  The template module is provided for people to be able to
- quickly implement their own functionality.
+While every effort has been made to ensure that these modules are working as intended, there is no formal support.  These modules are intended to provide examples and users should test thoroughly before using in theirenvironments.  The template module is provided for people to be able to quickly implement their own functionality.
 
- If you do run into an issue please open an issue against the GitHub
- repository and it will be resolved by one of the contributors.
+If you do run into an issue please open an issue against the GitHub repository and it will be resolved by one of the contributors.
 
- Feedback is always welcome, we hope you find these examples useful.
+Feedback is always welcome, we hope you find these examples useful.
 
 requirements:
-    - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher.
-    VMAX All Flash, VMAX3, or PowerMAX storage Array
+    - Ansible, Python 2.7 or higher, Unisphere for PowerMax version 9.0 or higher.VMAX All Flash, VMAX3, or PowerMAX storage Array
 
-    Installation Instructions
+Installation Instructions
 
 Copy dellemc Directory to
 
@@ -49,8 +43,7 @@ Playbooks can then be run from any working directory with ansible-playbook comma
 
 Before running any dellpmax modules as part of your playbooks, you will need to install additional python modules.
 
-Requires PyU4V minimum version 3.0.0.9 Please follow installation instructions
- on the GitHub
+Requires PyU4V minimum version 3.0.0.9 Please follow installation instructions on the GitHub
 
 https://github.com/MichaelMcAleer/PyU4V
 
@@ -62,9 +55,10 @@ Note in environments we've seen some failures where it was required to add envir
 
 All modules are fully documented with sample task code in and return data,
 
-To check how each can be consumed and what parameters are required please
-use ansible documentation commands to inspect:
+To check how each can be consumed and what parameters are required please use ansible documentation commands to inspect:
+e.g.
 
+ansible-doc -t module dellemc_pmax_manage_snap
 .. BadgeLinks
 
 .. |Maintenance| image:: https://img.shields.io/badge/Maintained-No-Red
@@ -77,6 +71,4 @@ use ansible documentation commands to inspect:
    :target: https://github.com/rawstorage/dellemcpmax_ansible/blob/master/LICENSE
 
 
-e.g.
 
-ansible-doc -t module dellemc_pmax_manage_snap
