@@ -1,7 +1,6 @@
 # dellemcpmax_ansible
 
-| |Maintenance| |OpenSource| |AskUs| |License| |Test| |Build| |Docs|
-| |Language| |PyVersions| |Unisphere| |Platform| |DTotal| |DMonth| |DWeek|
+| |Maintenance| |OpenSource| |AskUs| |License| 
 
 Update July 17th 2019 - Official modules from Dell EMC are now provided with full support.  Functionality will differ slighly from the open source modules so you will need to review the differences if you plan to siwtch over.
 
@@ -65,6 +64,18 @@ All modules are fully documented with sample task code in and return data,
 
 To check how each can be consumed and what parameters are required please 
 use ansible documentation commands to inspect:
+
+.. BadgeLinks
+
+.. |Maintenance| image:: https://img.shields.io/badge/Maintained-Yes-blue
+   :target: https://github.com/rawstorage/dellemcpmax_ansible/master
+.. |OpenSource| image:: https://img.shields.io/badge/Open%20Source-No-red
+   :target: https://github.com/rawstorage/dellemcpmax_ansible/
+.. |AskUs| image:: https://img.shields.io/badge/Ask%20Us...-Anything-blue
+   :target: https://github.com/rawstorage/dellemcpmax_ansible/issues
+.. |License| image:: https://img.shields.io/badge/License-GNU%203.0-blue
+   :target: https://github.com/rawstorage/dellemcpmax_ansible/blob/master/LICENSE
+
 
 e.g.
 
