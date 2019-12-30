@@ -1,6 +1,6 @@
 # dellemcpmax_ansible
 
-| |Maintenance| |OpenSource| |AskUs| |License| 
+| |Maintenance| |OpenSource| |AskUs| |License|
 
 Update July 17th 2019 - Official modules from Dell EMC are now provided with full support.  Functionality will differ slighly from the open source modules so you will need to review the differences if you plan to siwtch over.
 
@@ -19,27 +19,27 @@ Library of Modules and Sample Runbooks for Dell EMC PowerMax &amp; VMAX customer
 Support Information
 
 While every effort has been made to ensure that these modules are working as
- intended, there is no formal support.  These modules are intended to 
- provide examples and users should test thoroughly before using in their 
- environments.  The template module is provided for people to be able to 
+ intended, there is no formal support.  These modules are intended to
+ provide examples and users should test thoroughly before using in their
+ environments.  The template module is provided for people to be able to
  quickly implement their own functionality.
- 
- If you do run into an issue please open an issue against the GitHub 
+
+ If you do run into an issue please open an issue against the GitHub
  repository and it will be resolved by one of the contributors.
- 
- Feedback is always welcome, we hope you find these examples useful. 
+
+ Feedback is always welcome, we hope you find these examples useful.
 
 requirements:
-    - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher. 
+    - Ansible, Python 2.7, Unisphere for PowerMax version 9.0 or higher.
     VMAX All Flash, VMAX3, or PowerMAX storage Array
-    
+
     Installation Instructions
 
-Copy dellemc Directory to 
+Copy dellemc Directory to
 
 /usr/lib/python2.7/dist-packages/ansible/modules/storage/
 
-copy dellemc.py file in module_utils to 
+copy dellemc.py file in module_utils to
 
 /usr/lib/python2.7/dist-packages/ansible/module_utils
 
@@ -60,9 +60,9 @@ Note in environments we've seen some failures where it was required to add envir
         no_proxy: "*"
 
 
-All modules are fully documented with sample task code in and return data, 
+All modules are fully documented with sample task code in and return data,
 
-To check how each can be consumed and what parameters are required please 
+To check how each can be consumed and what parameters are required please
 use ansible documentation commands to inspect:
 
 .. BadgeLinks
@@ -73,7 +73,7 @@ use ansible documentation commands to inspect:
    :target: https://github.com/rawstorage/dellemcpmax_ansible/
 .. |AskUs| image:: https://img.shields.io/badge/Ask%20Us...-Anything-blue
    :target: https://github.com/rawstorage/dellemcpmax_ansible/issues
-.. |License| image:: https://img.shields.io/badge/License-GNU%203.0-blue
+.. |License| image:: https://img.shields.io/badge/License-AGPL%20v3-blue
    :target: https://github.com/rawstorage/dellemcpmax_ansible/blob/master/LICENSE
 
 
