@@ -59,6 +59,10 @@ To check how each can be consumed and what parameters are required please use an
 e.g.
 
 ansible-doc -t module dellemc_pmax_manage_snap
+
+
+
+
 .. BadgeLinks
 
 .. |Maintenance| image:: https://img.shields.io/badge/Maintained-No-Red
