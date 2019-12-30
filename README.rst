@@ -67,9 +67,9 @@ use ansible documentation commands to inspect:
 
 .. BadgeLinks
 
-.. |Maintenance| image:: https://img.shields.io/badge/Maintained-Yes-blue
+.. |Maintenance| image:: https://img.shields.io/badge/Maintained-No-Red
    :target: https://github.com/rawstorage/dellemcpmax_ansible/master
-.. |OpenSource| image:: https://img.shields.io/badge/Open%20Source-No-red
+.. |OpenSource| image:: https://img.shields.io/badge/Open%20Source-Yes-blue
    :target: https://github.com/rawstorage/dellemcpmax_ansible/
 .. |AskUs| image:: https://img.shields.io/badge/Ask%20Us...-Anything-blue
    :target: https://github.com/rawstorage/dellemcpmax_ansible/issues
